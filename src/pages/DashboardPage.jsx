@@ -113,18 +113,50 @@ export default function DashboardPage({ session, profile }) {
   const initializePipeline = useCallback(async () => {
     setPipelineLoading(true);
     try {
-      const res = await fetch("/api/gateway/sessions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          agentId: "main",
-          payload: {
-            kind: "agentTurn",
-            message: "Run the nightly pipeline — discover positions, tailor resumes, submit applications, and queue interview prep.",
-          },
-        }),
+      // OpenClaw gateway is WebSocket-based — connect, send RPC, disconnect
+      const wsUrl = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws/gateway`;
+      const ws = new WebSocket(wsUrl);
+
+      await new Promise((resolve, reject) => {
+        const timeout = setTimeout(() => {
+          ws.close();
+          reject(new Error("Gateway connection timed out"));
+        }, 10000);
+
+        ws.onopen = () => {
+          // Send a JSON-RPC style message to spawn the main agent
+          ws.send(JSON.stringify({
+            jsonrpc: "2.0",
+            method: "session.create",
+            params: {
+              agentId: "main",
+              payload: {
+                kind: "agentTurn",
+                message: "Run the nightly pipeline — discover positions, tailor resumes, submit applications, and queue interview prep.",
+              },
+            },
+            id: crypto.randomUUID(),
+          }));
+        };
+
+        ws.onmessage = (event) => {
+          clearTimeout(timeout);
+          console.log("Gateway response:", event.data);
+          ws.close();
+          resolve();
+        };
+
+        ws.onerror = (err) => {
+          clearTimeout(timeout);
+          reject(err);
+        };
+
+        ws.onclose = () => {
+          clearTimeout(timeout);
+          resolve();
+        };
       });
-      if (!res.ok) throw new Error("Gateway unavailable");
+
       refreshAgents();
     } catch (err) {
       console.error("Failed to initialize pipeline:", err);

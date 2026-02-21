@@ -6,16 +6,19 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      // Proxy requests to /api/gateway/* → OpenClaw gateway at localhost:18789
-      // The bearer token stays server-side (never sent to browser)
-      '/api/gateway': {
-        target: 'http://localhost:18789',
+      // Health-check ping — just hits the gateway root to see if it's alive
+      '/api/gateway-health': {
+        target: 'http://127.0.0.1:18789',
         changeOrigin: true,
-        rewrite: (path) => path.replace(/^\/api\/gateway/, '/api'),
-        headers: {
-          'Authorization': `Bearer ${process.env.OPENCLAW_GATEWAY_TOKEN || 'REDACTED_GATEWAY_TOKEN'}`
-        }
-      }
+        rewrite: () => '/',
+      },
+      // WebSocket proxy for the OpenClaw gateway (used by pipeline init)
+      '/ws/gateway': {
+        target: 'ws://127.0.0.1:18789',
+        ws: true,
+        changeOrigin: true,
+        rewrite: () => '/',
+      },
     }
   }
 })
