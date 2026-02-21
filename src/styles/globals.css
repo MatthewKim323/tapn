@@ -1,0 +1,46 @@
+/* ═══════════════════════════════════════════
+   TAPN — Design Tokens
+   Deep Space Command Center
+   ═══════════════════════════════════════════ */
+
+:root {
+  /* — backgrounds — */
+  --bg-base: #060B18;
+  --bg-surface: #0B1224;
+  --bg-elevated: #0F1730;
+  --bg-card: #121D3A;
+
+  /* — accent — */
+  --accent: #00E5A0;
+  --accent-glow: rgba(0, 229, 160, 0.12);
+  --accent-dim: rgba(0, 229, 160, 0.35);
+  --accent-strong: #00FFBA;
+
+  /* — secondary — */
+  --alert: #FF6B2C;
+  --alert-dim: rgba(255, 107, 44, 0.15);
+  --warning: #FFB547;
+  --error: #FF4560;
+
+  /* — text — */
+  --text-primary: #C9D6E8;
+  --text-bright: #EAF0FA;
+  --text-secondary: #6B85A8;
+  --text-muted: #354560;
+
+  /* — borders — */
+  --border: rgba(0, 229, 160, 0.08);
+  --border-bright: rgba(0, 229, 160, 0.25);
+  --border-subtle: rgba(201, 214, 232, 0.06);
+
+  /* — fonts — */
+  --font-display: 'Syne', sans-serif;
+  --font-mono: 'Azeret Mono', monospace;
+  --font-body: 'Syne', sans-serif;
+
+  /* — radii — */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+}

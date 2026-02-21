@@ -1,11 +1,11 @@
 :root {
-  font-family: 'Geist', 'Neuton', serif, system-ui, Avenir, Helvetica, Arial, sans-serif;
+  font-family: var(--font-body, 'Syne'), 'Geist', sans-serif;
   line-height: 1.5;
-  font-weight: 100;
+  font-weight: 400;
 
-  color-scheme: light dark;
-  color: rgba(255, 255, 255, 0.87);
-  background-color: #000;
+  color-scheme: dark;
+  color: var(--text-primary, rgba(255, 255, 255, 0.87));
+  background-color: var(--bg-base, #060B18);
 
   font-synthesis: none;
   text-rendering: optimizeLegibility;
@@ -15,11 +15,12 @@
 
 a {
   font-weight: 500;
-  color: #646cff;
+  color: var(--accent, #00E5A0);
   text-decoration: inherit;
 }
+
 a:hover {
-  color: #535bf2;
+  color: var(--accent-strong, #00FFBA);
 }
 
 html, body, #root {
@@ -29,4 +30,22 @@ html, body, #root {
   height: 100%;
   overflow: hidden;
   text-transform: lowercase;
+}
+
+/* Scrollbar styling for inner pages */
+::-webkit-scrollbar {
+  width: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--text-muted, #354560);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--text-secondary, #6B85A8);
 }
