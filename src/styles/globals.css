@@ -1,46 +1,49 @@
 /* ═══════════════════════════════════════════
    TAPN — Design Tokens
-   Deep Space Command Center
+   Cosmic Warm — Black Space + Stars
    ═══════════════════════════════════════════ */
 
 :root {
   /* — backgrounds — */
-  --bg-base: #060B18;
-  --bg-surface: #0B1224;
-  --bg-elevated: #0F1730;
-  --bg-card: #121D3A;
+  --bg-base: #050510;
+  --bg-surface: #0B0B1F;
+  --bg-elevated: #111130;
+  --bg-card: #13133A;
+  --bg-primary: #050510;
 
-  /* — accent — */
-  --accent: #00E5A0;
-  --accent-glow: rgba(0, 229, 160, 0.12);
-  --accent-dim: rgba(0, 229, 160, 0.35);
-  --accent-strong: #00FFBA;
+  /* — accent (coral-pink, matches galaxy stars) — */
+  --accent: #FF6B6B;
+  --accent-glow: rgba(255, 107, 107, 0.08);
+  --accent-dim: rgba(255, 107, 107, 0.3);
+  --accent-strong: #FF8A8A;
 
   /* — secondary — */
-  --alert: #FF6B2C;
-  --alert-dim: rgba(255, 107, 44, 0.15);
+  --accent-amber: #FFB547;
+  --accent-purple: #C77DFF;
+  --alert: #FF6B6B;
+  --alert-dim: rgba(255, 107, 107, 0.15);
   --warning: #FFB547;
-  --error: #FF4560;
+  --error: #EF4444;
 
   /* — text — */
-  --text-primary: #C9D6E8;
-  --text-bright: #EAF0FA;
-  --text-secondary: #6B85A8;
-  --text-muted: #354560;
+  --text-primary: #E0D6F0;
+  --text-bright: #F0E6FF;
+  --text-secondary: #9B8AB8;
+  --text-muted: #564B6E;
 
   /* — borders — */
-  --border: rgba(0, 229, 160, 0.08);
-  --border-bright: rgba(0, 229, 160, 0.25);
-  --border-subtle: rgba(201, 214, 232, 0.06);
+  --border: #1E1A35;
+  --border-bright: #2D2650;
+  --border-subtle: #16132B;
 
   /* — fonts — */
   --font-display: 'Syne', sans-serif;
   --font-mono: 'Azeret Mono', monospace;
-  --font-body: 'Syne', sans-serif;
+  --font-body: 'Geist', sans-serif;
 
   /* — radii — */
-  --radius-sm: 6px;
-  --radius-md: 10px;
-  --radius-lg: 16px;
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
   --radius-xl: 24px;
 }

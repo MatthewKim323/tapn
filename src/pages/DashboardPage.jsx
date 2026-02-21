@@ -6,6 +6,15 @@ import { useAgentActivity } from "../hooks/useAgentActivity";
 import { useApplications } from "../hooks/useApplications";
 import { useAgentStatus } from "../hooks/useAgentStatus";
 import { useDashboardStats } from "../hooks/useDashboardStats";
+import FaultyTerminal from "../components/FaultyTerminal";
+
+import OverviewView from "./dashboard/OverviewView";
+import ApplicationsView from "./dashboard/ApplicationsView";
+import AgentsView from "./dashboard/AgentsView";
+import PipelineView from "./dashboard/PipelineView";
+import ResumesView from "./dashboard/ResumesView";
+import InterviewerView from "./dashboard/InterviewerView";
+
 import "./DashboardPage.css";
 
 const AGENTS = [
@@ -65,6 +74,15 @@ const AGENTS = [
   },
 ];
 
+const NAV_ITEMS = [
+  { key: "overview", icon: "◉", label: "overview" },
+  { key: "applications", icon: "◎", label: "applications" },
+  { key: "agents", icon: "⬡", label: "agents" },
+  { key: "pipeline", icon: "▹", label: "pipeline" },
+  { key: "resumes", icon: "◇", label: "resumes" },
+  { key: "interviewer", icon: "🎤", label: "interviewer" },
+];
+
 function timeAgo(dateStr) {
   if (!dateStr) return "—";
   const diff = Date.now() - new Date(dateStr).getTime();
@@ -82,11 +100,17 @@ export default function DashboardPage({ session, profile }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [pipelineLoading, setPipelineLoading] = useState(false);
   const [activePage, setActivePage] = useState("overview");
+  const [agentDetailId, setAgentDetailId] = useState(null);
 
   // Live data hooks
   const { events: activityEvents } = useAgentActivity();
   const { applications } = useApplications();
-  const { getAgentStatus, getLastAction, gatewayOnline, refresh: refreshAgents } = useAgentStatus();
+  const {
+    getAgentStatus,
+    getLastAction,
+    gatewayOnline,
+    refresh: refreshAgents,
+  } = useAgentStatus();
   const { stats } = useDashboardStats();
 
   async function handleLogout() {
@@ -113,8 +137,7 @@ export default function DashboardPage({ session, profile }) {
   const initializePipeline = useCallback(async () => {
     setPipelineLoading(true);
     try {
-      // OpenClaw gateway is WebSocket-based — connect, send RPC, disconnect
-      const wsUrl = `${window.location.protocol === 'https:' ? 'wss' : 'ws'}://${window.location.host}/ws/gateway`;
+      const wsUrl = `${window.location.protocol === "https:" ? "wss" : "ws"}://${window.location.host}/ws/gateway`;
       const ws = new WebSocket(wsUrl);
 
       await new Promise((resolve, reject) => {
@@ -124,19 +147,21 @@ export default function DashboardPage({ session, profile }) {
         }, 10000);
 
         ws.onopen = () => {
-          // Send a JSON-RPC style message to spawn the main agent
-          ws.send(JSON.stringify({
-            jsonrpc: "2.0",
-            method: "session.create",
-            params: {
-              agentId: "main",
-              payload: {
-                kind: "agentTurn",
-                message: "Run the nightly pipeline — discover positions, tailor resumes, submit applications, and queue interview prep.",
+          ws.send(
+            JSON.stringify({
+              jsonrpc: "2.0",
+              method: "session.create",
+              params: {
+                agentId: "main",
+                payload: {
+                  kind: "agentTurn",
+                  message:
+                    "Run the nightly pipeline — discover positions, tailor resumes, submit applications, and queue interview prep.",
+                },
               },
-            },
-            id: crypto.randomUUID(),
-          }));
+              id: crypto.randomUUID(),
+            })
+          );
         };
 
         ws.onmessage = (event) => {
@@ -165,18 +190,99 @@ export default function DashboardPage({ session, profile }) {
     }
   }, [refreshAgents]);
 
+  // Navigate between views — supports passing an agent ID for deep-linking
+  function handleNavigate(page, agentId) {
+    setActivePage(page);
+    if (page === "agents" && agentId) {
+      setAgentDetailId(agentId);
+    } else {
+      setAgentDetailId(null);
+    }
+  }
+
   const userName =
     profile?.full_name || session?.user?.email?.split("@")[0] || "operator";
 
-  const STAT_ITEMS = [
-    { label: "applications", value: String(stats.applications), icon: "◎" },
-    { label: "interviews", value: String(stats.interviews), icon: "◈" },
-    { label: "resumes generated", value: String(stats.resumesGenerated), icon: "◇" },
-    { label: "pipeline runs", value: String(stats.pipelineRuns), icon: "▹" },
-  ];
+  // Render active view
+  function renderView() {
+    switch (activePage) {
+      case "overview":
+        return (
+          <OverviewView
+            userName={userName}
+            gatewayOnline={gatewayOnline}
+            pipelineLoading={pipelineLoading}
+            initializePipeline={initializePipeline}
+            stats={stats}
+            agents={AGENTS}
+            getAgentStatus={getAgentStatus}
+            getLastAction={getLastAction}
+            activityEvents={activityEvents}
+            applications={applications}
+            onNavigate={handleNavigate}
+            timeAgo={timeAgo}
+          />
+        );
+      case "applications":
+        return (
+          <ApplicationsView applications={applications} timeAgo={timeAgo} />
+        );
+      case "agents":
+        return (
+          <AgentsView
+            agents={AGENTS}
+            getAgentStatus={getAgentStatus}
+            getLastAction={getLastAction}
+            gatewayOnline={gatewayOnline}
+            timeAgo={timeAgo}
+            initialAgentId={agentDetailId}
+          />
+        );
+      case "pipeline":
+        return (
+          <PipelineView
+            gatewayOnline={gatewayOnline}
+            pipelineLoading={pipelineLoading}
+            initializePipeline={initializePipeline}
+            activityEvents={activityEvents}
+            timeAgo={timeAgo}
+          />
+        );
+      case "resumes":
+        return (
+          <ResumesView applications={applications} timeAgo={timeAgo} />
+        );
+      case "interviewer":
+        return (
+          <InterviewerView applications={applications} timeAgo={timeAgo} />
+        );
+      default:
+        return null;
+    }
+  }
 
   return (
     <div className="dashboard-page">
+      {/* FaultyTerminal WebGL background */}
+      <div className="dashboard-terminal-bg">
+        <FaultyTerminal
+          scale={1.5}
+          gridMul={[2, 1]}
+          digitSize={1.2}
+          timeScale={0.3}
+          scanlineIntensity={0.3}
+          glitchAmount={0.8}
+          flickerAmount={0.6}
+          noiseAmp={0.6}
+          curvature={0.05}
+          tint="#FF6B6B"
+          mouseReact
+          mouseStrength={0.3}
+          pageLoadAnimation
+          brightness={0.2}
+        />
+      </div>
+
       {/* ═══ Sidebar ═══ */}
       <aside
         className={`dashboard-sidebar ${sidebarOpen ? "open" : "collapsed"}`}
@@ -192,41 +298,16 @@ export default function DashboardPage({ session, profile }) {
         </div>
 
         <nav className="sidebar-nav">
-          <button
-            className={`sidebar-link ${activePage === "overview" ? "active" : ""}`}
-            onClick={() => setActivePage("overview")}
-          >
-            <span className="sidebar-icon">◉</span>
-            {sidebarOpen && <span>overview</span>}
-          </button>
-          <button
-            className={`sidebar-link ${activePage === "applications" ? "active" : ""}`}
-            onClick={() => setActivePage("applications")}
-          >
-            <span className="sidebar-icon">◎</span>
-            {sidebarOpen && <span>applications</span>}
-          </button>
-          <button
-            className={`sidebar-link ${activePage === "agents" ? "active" : ""}`}
-            onClick={() => setActivePage("agents")}
-          >
-            <span className="sidebar-icon">⬡</span>
-            {sidebarOpen && <span>agents</span>}
-          </button>
-          <button
-            className={`sidebar-link ${activePage === "pipeline" ? "active" : ""}`}
-            onClick={() => setActivePage("pipeline")}
-          >
-            <span className="sidebar-icon">▹</span>
-            {sidebarOpen && <span>pipeline</span>}
-          </button>
-          <button
-            className={`sidebar-link ${activePage === "resumes" ? "active" : ""}`}
-            onClick={() => setActivePage("resumes")}
-          >
-            <span className="sidebar-icon">◇</span>
-            {sidebarOpen && <span>resumes</span>}
-          </button>
+          {NAV_ITEMS.map((item) => (
+            <button
+              key={item.key}
+              className={`sidebar-link ${activePage === item.key ? "active" : ""}`}
+              onClick={() => handleNavigate(item.key)}
+            >
+              <span className="sidebar-icon">{item.icon}</span>
+              {sidebarOpen && <span>{item.label}</span>}
+            </button>
+          ))}
         </nav>
 
         <div className="sidebar-footer">
@@ -252,7 +333,9 @@ export default function DashboardPage({ session, profile }) {
           </div>
           <div className="topbar-right">
             <span className="topbar-status">
-              <span className={`status-indicator ${gatewayOnline ? "running" : "offline"}`} />
+              <span
+                className={`status-indicator ${gatewayOnline ? "running" : "offline"}`}
+              />
               {gatewayOnline ? "gateway connected" : "gateway offline"}
             </span>
             <span className="topbar-user">{userName}</span>
@@ -260,167 +343,7 @@ export default function DashboardPage({ session, profile }) {
         </header>
 
         {/* Content */}
-        <div className="dashboard-content">
-          {/* Welcome */}
-          <motion.section
-            className="dashboard-welcome"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6 }}
-          >
-            <div className="welcome-text">
-              <h1 className="welcome-title">welcome back, {userName}</h1>
-              <p className="welcome-sub">
-                {gatewayOnline
-                  ? "your agent fleet is connected and standing by."
-                  : "start the openclaw gateway to connect your agents."}
-              </p>
-            </div>
-            <button
-              className="welcome-cta"
-              onClick={initializePipeline}
-              disabled={pipelineLoading || !gatewayOnline}
-            >
-              <span className={`cta-pulse ${gatewayOnline ? "" : "offline"}`} />
-              {pipelineLoading ? "spawning..." : "initialize pipeline"}
-            </button>
-          </motion.section>
-
-          {/* Stats */}
-          <motion.section
-            className="dashboard-stats"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.1 }}
-          >
-            {STAT_ITEMS.map((stat) => (
-              <div key={stat.label} className="stat-card">
-                <span className="stat-icon">{stat.icon}</span>
-                <span className="stat-value">{stat.value}</span>
-                <span className="stat-label">{stat.label}</span>
-              </div>
-            ))}
-          </motion.section>
-
-          {/* Agent Fleet */}
-          <motion.section
-            className="dashboard-agents"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.2 }}
-          >
-            <div className="section-header">
-              <h2 className="section-title">agent fleet</h2>
-              <span className="section-badge">6 agents</span>
-            </div>
-            <div className="agents-grid">
-              {AGENTS.map((agent, i) => {
-                const status = getAgentStatus(agent.id);
-                const lastAction = getLastAction(agent.id);
-                return (
-                  <motion.div
-                    key={agent.id}
-                    className="agent-card"
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.4, delay: 0.3 + i * 0.08 }}
-                  >
-                    <div className="agent-top">
-                      <span className="agent-emoji">{agent.emoji}</span>
-                      <span className={`agent-status-badge ${status}`}>
-                        {status}
-                      </span>
-                    </div>
-                    <h3 className="agent-name">{agent.name}</h3>
-                    <span className="agent-role">{agent.role}</span>
-                    <p className="agent-desc">{agent.description}</p>
-                    <div className="agent-footer">
-                      <span className="agent-last-run">
-                        {lastAction
-                          ? `${lastAction.action} · ${timeAgo(lastAction.created_at)}`
-                          : "last run: —"}
-                      </span>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          </motion.section>
-
-          {/* Activity Feed */}
-          <motion.section
-            className="dashboard-activity"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.6, delay: 0.4 }}
-          >
-            <div className="section-header">
-              <h2 className="section-title">recent activity</h2>
-              {activityEvents.length > 0 && (
-                <span className="section-badge">
-                  {activityEvents.length} events
-                </span>
-              )}
-            </div>
-
-            {activityEvents.length === 0 ? (
-              <div className="activity-empty">
-                <span className="activity-empty-icon">◌</span>
-                <p>no activity yet. initialize the pipeline to begin.</p>
-              </div>
-            ) : (
-              <div className="activity-feed">
-                {activityEvents.slice(0, 20).map((event) => (
-                  <div key={event.id} className="activity-row">
-                    <span className={`activity-dot ${event.status === "error" ? "error" : ""}`} />
-                    <span className="activity-agent">{event.agent_name}</span>
-                    <span className="activity-action">{event.action}</span>
-                    <span className="activity-time">
-                      {timeAgo(event.created_at)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </motion.section>
-
-          {/* Applications Table (if any) */}
-          {applications.length > 0 && (
-            <motion.section
-              className="dashboard-applications"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.5 }}
-            >
-              <div className="section-header">
-                <h2 className="section-title">applications</h2>
-                <span className="section-badge">
-                  {applications.length} tracked
-                </span>
-              </div>
-              <div className="applications-table">
-                <div className="app-table-header">
-                  <span>company</span>
-                  <span>role</span>
-                  <span>status</span>
-                  <span>applied</span>
-                </div>
-                {applications.slice(0, 15).map((app) => (
-                  <div key={app.id} className="app-table-row">
-                    <span className="app-company">{app.company_name}</span>
-                    <span className="app-role">{app.job_title}</span>
-                    <span className={`app-status-badge ${app.status}`}>
-                      {app.status}
-                    </span>
-                    <span className="app-date">
-                      {timeAgo(app.applied_at)}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </motion.section>
-          )}
-        </div>
+        <div className="dashboard-content">{renderView()}</div>
       </main>
     </div>
   );

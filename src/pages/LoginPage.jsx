@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
+import FaultyTerminal from "../components/FaultyTerminal";
 import "./LoginPage.css";
 
 export default function LoginPage() {
@@ -57,11 +58,25 @@ export default function LoginPage() {
 
   return (
     <div className="login-page">
-      {/* Grid background */}
-      <div className="login-grid-bg" />
-
-      {/* Ambient glow */}
-      <div className="login-ambient" />
+      {/* FaultyTerminal WebGL background */}
+      <div className="login-terminal-bg">
+        <FaultyTerminal
+          scale={1.5}
+          gridMul={[2, 1]}
+          digitSize={1.2}
+          timeScale={0.4}
+          scanlineIntensity={0.4}
+          glitchAmount={1}
+          flickerAmount={0.8}
+          noiseAmp={0.8}
+          curvature={0.08}
+          tint="#FF6B6B"
+          mouseReact
+          mouseStrength={0.4}
+          pageLoadAnimation
+          brightness={0.35}
+        />
+      </div>
 
       <motion.div
         className="login-card"

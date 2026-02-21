@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
 import { generateUserMd } from "../lib/generateUserMd";
+import FaultyTerminal from "../components/FaultyTerminal";
 import "./OnboardingPage.css";
 
 const STEPS = [
@@ -234,7 +235,25 @@ export default function OnboardingPage({ session, onProfileUpdate }) {
 
   return (
     <div className="onboarding-page">
-      <div className="onboarding-grid-bg" />
+      {/* FaultyTerminal WebGL background */}
+      <div className="onboarding-terminal-bg">
+        <FaultyTerminal
+          scale={1.5}
+          gridMul={[2, 1]}
+          digitSize={1.2}
+          timeScale={0.35}
+          scanlineIntensity={0.35}
+          glitchAmount={0.8}
+          flickerAmount={0.7}
+          noiseAmp={0.7}
+          curvature={0.06}
+          tint="#C77DFF"
+          mouseReact
+          mouseStrength={0.3}
+          pageLoadAnimation
+          brightness={0.25}
+        />
+      </div>
 
       {/* Progress bar */}
       <div className="onboarding-progress-bar">

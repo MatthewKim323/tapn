@@ -1,12 +1,65 @@
 :root {
-  font-family: var(--font-body, 'Syne'), 'Geist', sans-serif;
+  /* ═══ Cosmic Palette — matches the galaxy landing page ═══ */
+  /* Warm orange, pink, purple, red stars on black space */
+
+  /* Backgrounds */
+  --bg-base: #050510;        /* near-black, faint purple cast */
+  --bg-surface: #0B0B1F;     /* dark indigo panels */
+  --bg-elevated: #111130;    /* raised surfaces */
+  --bg-primary: #050510;     /* alias */
+
+  /* Text */
+  --text-bright: #F0E6FF;    /* warm white, lavender tint */
+  --text-primary: #E0D6F0;
+  --text-secondary: #9B8AB8; /* muted purple */
+  --text-muted: #564B6E;     /* dim violet-gray */
+
+  /* Accent — warm coral-pink (matches the pink/red stars) */
+  --accent: #FF6B6B;
+  --accent-dim: rgba(255, 107, 107, 0.3);
+  --accent-glow: rgba(255, 107, 107, 0.08);
+  --accent-strong: #FF8A8A;
+
+  /* Secondary accent — amber/orange (matches orange stars) */
+  --warning: #FFB547;
+  --accent-amber: #FFB547;
+
+  /* Tertiary — purple (matches purple stars) */
+  --accent-purple: #C77DFF;
+
+  /* Error */
+  --error: #EF4444;
+  --alert: #FF6B6B;
+
+  /* Borders */
+  --border: #1E1A35;
+  --border-subtle: #16132B;
+  --border-bright: #2D2650;
+
+  /* Fonts */
+  --font-display: 'Syne', sans-serif;
+  --font-body: 'Geist', sans-serif;
+  --font-mono: 'Azeret Mono', monospace;
+
+  /* Spacing */
+  --spacing-xs: 4px;
+  --spacing-sm: 8px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+
+  /* Border Radius */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-full: 9999px;
+
+  font-family: var(--font-body);
   line-height: 1.5;
   font-weight: 400;
-
   color-scheme: dark;
-  color: var(--text-primary, rgba(255, 255, 255, 0.87));
-  background-color: var(--bg-base, #060B18);
-
+  color: var(--text-primary);
+  background-color: var(--bg-base);
   font-synthesis: none;
   text-rendering: optimizeLegibility;
   -webkit-font-smoothing: antialiased;
@@ -15,12 +68,12 @@
 
 a {
   font-weight: 500;
-  color: var(--accent, #00E5A0);
+  color: var(--accent);
   text-decoration: inherit;
 }
 
 a:hover {
-  color: var(--accent-strong, #00FFBA);
+  color: var(--accent-strong);
 }
 
 html, body, #root {
@@ -42,10 +95,10 @@ html, body, #root {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: var(--text-muted, #354560);
+  background: var(--text-muted);
   border-radius: 3px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: var(--text-secondary, #6B85A8);
+  background: var(--text-secondary);
 }
