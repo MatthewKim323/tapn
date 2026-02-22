@@ -16,13 +16,6 @@ export default function OverviewView({
   onNavigate,
   timeAgo,
 }) {
-  const STAT_ITEMS = [
-    { label: "applications", value: String(stats.applications) },
-    { label: "interviews", value: String(stats.interviews) },
-    { label: "resumes generated", value: String(stats.resumesGenerated) },
-    { label: "pipeline runs", value: String(stats.pipelineRuns) },
-  ];
-
   return (
     <>
       {/* Welcome */}
@@ -43,22 +36,6 @@ export default function OverviewView({
           <span className={`cta-pulse ${gatewayOnline ? "" : "offline"}`} />
           open command center
         </button>
-      </motion.section>
-
-      {/* Stats */}
-      <motion.section
-        className="dashboard-stats"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6, delay: 0.1 }}
-      >
-        {STAT_ITEMS.map((stat) => (
-          <div key={stat.label} className="stat-card">
-            <span className="stat-icon">{stat.icon}</span>
-            <span className="stat-value">{stat.value}</span>
-            <span className="stat-label">{stat.label}</span>
-          </div>
-        ))}
       </motion.section>
 
       {/* Agent Fleet (compact — click to go to agents page) */}

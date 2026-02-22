@@ -310,6 +310,23 @@ export default function DashboardPage({ session, profile }) {
           ))}
         </nav>
 
+        {sidebarOpen && (
+          <div className="sidebar-stats">
+            <div className="sidebar-stat">
+              <span className="sidebar-stat-val">{stats.applications}</span>
+              <span className="sidebar-stat-label">applications</span>
+            </div>
+            <div className="sidebar-stat">
+              <span className="sidebar-stat-val">{stats.interviews}</span>
+              <span className="sidebar-stat-label">interviews</span>
+            </div>
+            <div className="sidebar-stat">
+              <span className="sidebar-stat-val">{stats.resumesGenerated}</span>
+              <span className="sidebar-stat-label">resumes</span>
+            </div>
+          </div>
+        )}
+
         <div className="sidebar-footer">
           <button className="sidebar-link" onClick={downloadUserMd}>
             <span className="sidebar-icon">↓</span>
