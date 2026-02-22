@@ -195,6 +195,30 @@ export default function InterviewerView({ applications, timeAgo }) {
             });
         }
 
+        // build per-interview overrides from session data
+        const company = session.company || session.company_name || "general practice";
+        const role = session.job_title || "mock interview";
+        const interviewer = session.interviewer_name || "Alex";
+        const questions = session.questions_summary;
+
+        let overrides = undefined;
+        // only override if we have real session data (not a blank quick-start)
+        if (session.company || session.interviewer_name) {
+          let promptText = `You are ${interviewer}, a hiring manager at ${company}. You are conducting a mock interview for the ${role} position. Be professional, warm, and neutral — do not give feedback during the interview. Ask one question at a time and wait for the candidate to respond before moving on.`;
+          if (questions && questions.length > 0) {
+            const cats = questions.map(q => q.category || q.topic).join(", ");
+            promptText += ` Cover these areas: ${cats}.`;
+          }
+          promptText += ` After all questions, ask if the candidate has any questions about the role, then close the interview professionally.`;
+
+          overrides = {
+            agent: {
+              prompt: { prompt: promptText },
+              firstMessage: `Hi, thanks for joining. I'm ${interviewer} from ${company}. I'll be conducting your interview for the ${role} position today. We'll go through a few questions — just relax and answer naturally. Ready to get started?`,
+            },
+          };
+        }
+
         // try signed URL first (keeps API key server-side)
         let signedUrl = null;
         try {
@@ -208,14 +232,14 @@ export default function InterviewerView({ applications, timeAgo }) {
         }
 
         if (signedUrl) {
-          await conversation.startSession({ signedUrl });
+          await conversation.startSession({ signedUrl, overrides });
         } else {
           // fallback: use the agent_id from the session row, or env var
           const agentId =
             session.agent_id || import.meta.env.VITE_ELEVENLABS_AGENT_ID;
           if (!agentId)
             throw new Error("no agent_id found — check session or .env");
-          await conversation.startSession({ agentId });
+          await conversation.startSession({ agentId, overrides });
         }
       } catch (err) {
         console.error("failed to start interview:", err);
