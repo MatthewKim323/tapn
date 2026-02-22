@@ -14,6 +14,37 @@ import { useSceneStore } from "../store/sceneStore";
 const galaxyFocal = [0.5, 0.25];
 const galaxyRotation = [1.0, 0.0];
 
+/* ═══ Tech logos for the "built with" marquee ═══ */
+const TECH_STACK = [
+  { name: "React", logo: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/react/react-original.svg", url: "https://react.dev" },
+  { name: "Vite", logo: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/vitejs/vitejs-original.svg", url: "https://vite.dev" },
+  { name: "Three.js", logo: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/threejs/threejs-original.svg", url: "https://threejs.org" },
+  { name: "Supabase", logo: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/supabase/supabase-original.svg", url: "https://supabase.com" },
+  { name: "PostgreSQL", logo: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/postgresql/postgresql-original.svg", url: "https://www.postgresql.org" },
+  { name: "Framer Motion", logo: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/framermotion/framermotion-original.svg", url: "https://www.framer.com/motion" },
+  { name: "GSAP", logo: "https://cdn.worldvectorlogo.com/logos/gsap-greensock.svg", url: "https://gsap.com" },
+  { name: "JavaScript", logo: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/javascript/javascript-original.svg", url: "https://developer.mozilla.org/en-US/docs/Web/JavaScript" },
+  { name: "CSS3", logo: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/css3/css3-original.svg", url: "https://developer.mozilla.org/en-US/docs/Web/CSS" },
+  { name: "Node.js", logo: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/nodejs/nodejs-original.svg", url: "https://nodejs.org" },
+  { name: "ElevenLabs", logo: "https://avatars.githubusercontent.com/u/101422956?s=200&v=4", url: "https://elevenlabs.io" },
+  { name: "OpenClaw", logo: "https://avatars.githubusercontent.com/u/193572743?s=200&v=4", url: "https://openclaw.dev" },
+  { name: "Zustand", logo: "https://raw.githubusercontent.com/pmndrs/zustand/main/bear.jpg", url: "https://github.com/pmndrs/zustand" },
+  { name: "React Router", logo: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/reactrouter/reactrouter-original.svg", url: "https://reactrouter.com" },
+  { name: "GitHub", logo: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/github/github-original.svg", url: "https://github.com/MatthewKim323/tapn" },
+  { name: "OGL", logo: "https://cdn.jsdelivr.net/gh/devicons/devicon@latest/icons/opengl/opengl-original.svg", url: "https://github.com/oframe/ogl" },
+];
+
+/* triple the array so the marquee loops seamlessly */
+const MARQUEE_ITEMS = [...TECH_STACK, ...TECH_STACK, ...TECH_STACK];
+
+const TEAM = [
+  "matthew kim",
+  "brendan chung",
+  "sou hamura",
+  "sabrina nguyen",
+  "allison gu",
+];
+
 function LandingPage() {
   const { isLoading, isIntroComplete, triggerZoom, navigationState, resetNavigation } =
     useSceneStore();
@@ -78,6 +109,58 @@ function LandingPage() {
 
       {/* Layer 4: UI Content */}
       <div className="content-container">
+        {/* ═══ Glassmorphic Top Bar ═══ */}
+        <motion.nav
+          className="glass-topbar"
+          initial={{ opacity: 0, y: -30 }}
+          animate={{ opacity: navigationState === "zoomingIn" ? 0 : 1, y: 0 }}
+          transition={{ delay: 1.4, duration: 0.9, ease: "easeOut" }}
+        >
+          {/* Row 1: team */}
+          <div className="glass-row glass-row-team">
+            <span className="glass-label">team</span>
+            <div className="glass-team-names">
+              {TEAM.map((name, i) => (
+                <span key={name} className="glass-team-name">
+                  {name}
+                  {i < TEAM.length - 1 && (
+                    <span className="glass-team-sep">|</span>
+                  )}
+                </span>
+              ))}
+            </div>
+          </div>
+
+          {/* Row 2: built with label */}
+          <div className="glass-row glass-row-built">
+            <span className="glass-label">built with</span>
+          </div>
+
+          {/* Row 3: scrolling favicons */}
+          <div className="glass-row glass-row-icons">
+            <div className="glass-marquee-track">
+              <div className="glass-marquee-scroll">
+                {MARQUEE_ITEMS.map((tech, i) => (
+                  <a
+                    key={`${tech.name}-${i}`}
+                    className="glass-tech-icon"
+                    href={tech.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    title={tech.name}
+                  >
+                    <img
+                      src={tech.logo}
+                      alt={tech.name}
+                      loading="lazy"
+                    />
+                  </a>
+                ))}
+              </div>
+            </div>
+          </div>
+        </motion.nav>
+
         <motion.header
           className="page-header"
           initial={{ opacity: 0 }}
@@ -107,6 +190,16 @@ function LandingPage() {
               to={{ opacity: 1, y: 0 }}
             />
           )}
+          {isIntroComplete && (
+            <motion.p
+              className="tagline"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.6, duration: 1.2 }}
+            >
+              six agents. one pipeline. every application handled.
+            </motion.p>
+          )}
 
           {isIntroComplete && (
             <motion.div
@@ -120,7 +213,7 @@ function LandingPage() {
                 onClick={triggerZoom}
                 disabled={navigationState !== "idle"}
               >
-                <span className="enter-button-text">get started</span>
+                <span className="enter-button-text">get tapped in</span>
                 <span className="enter-button-glow" />
               </button>
             </motion.div>

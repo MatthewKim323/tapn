@@ -45,6 +45,196 @@
   align-items: center;
   pointer-events: auto;
   position: relative;
+  margin-top: -40px;
+}
+
+/* ═══════════════════════════════════════════
+   GLASSMORPHIC TOP BAR
+   ═══════════════════════════════════════════ */
+
+.glass-topbar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  background: linear-gradient(
+    180deg,
+    rgba(255, 255, 255, 0.05) 0%,
+    rgba(255, 255, 255, 0.02) 60%,
+    transparent 100%
+  );
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(28px) saturate(1.3);
+  -webkit-backdrop-filter: blur(28px) saturate(1.3);
+  box-shadow:
+    0 4px 30px rgba(0, 0, 0, 0.25),
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    inset 0 -1px 0 rgba(255, 255, 255, 0.02);
+}
+
+/* shared row */
+.glass-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  justify-content: center;
+}
+
+/* ── Row 1: team ── */
+.glass-row-team {
+  gap: 12px;
+  padding: 14px 32px 8px;
+}
+
+.glass-label {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5rem;
+  font-weight: 500;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.25);
+  flex-shrink: 0;
+}
+
+.glass-team-names {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.glass-team-name {
+  font-family: 'Geist', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 300;
+  letter-spacing: 0.04em;
+  color: rgba(255, 255, 255, 0.5);
+  white-space: nowrap;
+}
+
+.glass-team-sep {
+  display: inline-block;
+  margin: 0 10px;
+  color: rgba(255, 255, 255, 0.1);
+  font-weight: 200;
+}
+
+/* ── Row 2: built with label ── */
+.glass-row-built {
+  padding: 6px 32px 4px;
+  border-top: 1px solid rgba(255, 255, 255, 0.035);
+}
+
+/* ── Row 3: icon marquee — constrained to center ~40% ── */
+.glass-row-icons {
+  padding: 2px 0 14px;
+  width: 42%;
+  min-width: 320px;
+  max-width: 600px;
+}
+
+.glass-marquee-track {
+  width: 100%;
+  overflow: hidden;
+  mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    black 10%,
+    black 90%,
+    transparent 100%
+  );
+  -webkit-mask-image: linear-gradient(
+    to right,
+    transparent 0%,
+    black 10%,
+    black 90%,
+    transparent 100%
+  );
+}
+
+.glass-marquee-scroll {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  width: max-content;
+  animation: marqueeScroll 40s linear infinite;
+}
+
+@keyframes marqueeScroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(calc(-100% / 3)); }
+}
+
+.glass-tech-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 5px;
+  transition: all 0.3s ease;
+  text-decoration: none;
+}
+
+.glass-tech-icon img {
+  width: 19px;
+  height: 19px;
+  object-fit: contain;
+  border-radius: 3px;
+  filter: grayscale(100%) brightness(0.6);
+  opacity: 0.4;
+  transition: all 0.3s ease;
+}
+
+.glass-tech-icon:hover img {
+  filter: grayscale(0%) brightness(1.2);
+  opacity: 1;
+  transform: scale(1.3);
+}
+
+/* ═══ Responsive ═══ */
+
+@media (max-width: 768px) {
+  .glass-row-team {
+    gap: 8px;
+    padding: 10px 16px 6px;
+  }
+  .glass-team-name {
+    font-size: 0.6rem;
+  }
+  .glass-team-sep {
+    margin: 0 6px;
+  }
+  .glass-row-icons {
+    width: 60%;
+    min-width: 260px;
+  }
+  .glass-tech-icon img {
+    width: 16px;
+    height: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .glass-row-team {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+  .glass-team-name {
+    font-size: 0.55rem;
+  }
+  .glass-team-sep {
+    margin: 0 4px;
+  }
+  .glass-row-icons {
+    width: 75%;
+  }
 }
 
 .title {
@@ -67,16 +257,28 @@
   color: white;
   text-align: center;
   max-width: 40ch;
-  margin-top: 1.2rem;
+  margin-top: 0.6rem;
   margin-bottom: 0;
   text-shadow: 0 0 25px rgba(255, 255, 255, 0.3);
   letter-spacing: 0.15em;
   font-weight: 200;
 }
 
+.tagline {
+  font-family: 'Geist', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 300;
+  letter-spacing: 0.12em;
+  color: rgba(255, 255, 255, 0.5);
+  text-align: center;
+  margin-top: 0.4rem;
+  margin-bottom: 0;
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.15);
+}
+
 /* --- Enter Button --- */
 .cta-wrapper {
-  margin-top: 2.5rem;
+  margin-top: 1.2rem;
 }
 
 .enter-button {
