@@ -110,7 +110,6 @@ export default function AgentsView({
               >
                 <div className="agent-card-header">
                   <div className="agent-identity">
-                    <span className="agent-emoji-lg">{agent.emoji}</span>
                     <div>
                       <h3 className="agent-name-lg">{agent.name}</h3>
                       <span className="agent-role-sm">{agent.role}</span>
@@ -160,7 +159,6 @@ export default function AgentsView({
             >
               <div className="detail-panel-header">
                 <div className="detail-panel-identity">
-                  <span className="agent-emoji-xl">{selectedAgent.emoji}</span>
                   <div>
                     <h2 className="detail-panel-name">{selectedAgent.name}</h2>
                     <span className="detail-panel-role">{selectedAgent.role}</span>

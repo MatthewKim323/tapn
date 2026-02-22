@@ -84,7 +84,7 @@ export default function ApplicationsView({ applications, timeAgo }) {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.1 }}
         >
-          <span className="followup-icon">⚡</span>
+          <span className="followup-icon">!</span>
           <span>
             {needsFollowUp.length} application{needsFollowUp.length > 1 ? "s" : ""} applied 5+ days
             ago with no follow-up

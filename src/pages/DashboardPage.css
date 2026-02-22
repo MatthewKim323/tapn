@@ -516,7 +516,6 @@
   margin-bottom: 4px;
 }
 
-.agent-emoji { font-size: 1.5rem; }
 
 .agent-status-badge {
   font-family: var(--font-mono);
@@ -669,8 +668,6 @@
   gap: 12px;
 }
 
-.agent-emoji-lg { font-size: 2rem; }
-.agent-emoji-xl { font-size: 2.5rem; }
 
 .agent-name-lg {
   font-family: var(--font-display);
@@ -1345,9 +1342,6 @@
   border-color: var(--border-bright);
 }
 
-.stage-emoji {
-  font-size: 1.8rem;
-}
 
 .stage-label {
   font-family: var(--font-display);
@@ -1800,7 +1794,6 @@
   align-items: center;
 }
 
-.ready-emoji { font-size: 1.3rem; }
 
 .ready-badge {
   font-family: var(--font-mono);

@@ -238,7 +238,7 @@ export default function InterviewerView({ applications, timeAgo }) {
               </div>
               <span className={`session-status ${sessionStatus}`}>
                 {sessionStatus === "loading" && "connecting to elevenlabs..."}
-                {sessionStatus === "active" && "🎙️ interview in progress"}
+                {sessionStatus === "active" && "interview in progress"}
                 {sessionStatus === "ended" && "generating debrief..."}
               </span>
             </div>
@@ -355,7 +355,7 @@ export default function InterviewerView({ applications, timeAgo }) {
 
         {readyApps.length === 0 ? (
           <div className="activity-empty">
-            <span className="activity-empty-icon">🎤</span>
+            <span className="activity-empty-icon">◈</span>
             <p>
               no interviews ready yet. aria configures mock interviews after
               echo submits applications.
@@ -372,7 +372,6 @@ export default function InterviewerView({ applications, timeAgo }) {
                 transition={{ duration: 0.3, delay: i * 0.05 }}
               >
                 <div className="ready-card-top">
-                  <span className="ready-emoji">🎤</span>
                   <span className="ready-badge">ready</span>
                 </div>
                 <h3 className="ready-company">{app.company_name}</h3>

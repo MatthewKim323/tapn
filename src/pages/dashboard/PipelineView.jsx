@@ -3,10 +3,10 @@ import { motion } from "framer-motion";
 import { supabase } from "../../lib/supabase";
 
 const PIPELINE_STAGES = [
-  { agent: "scout", label: "discovery", emoji: "🔍", desc: "finding companies actively hiring" },
-  { agent: "taylor", label: "tailoring", emoji: "📝", desc: "crafting targeted resumes" },
-  { agent: "echo", label: "submission", emoji: "🌐", desc: "applying to matched positions" },
-  { agent: "aria", label: "interview prep", emoji: "🎤", desc: "generating prep materials" },
+  { agent: "scout", label: "discovery", desc: "finding companies actively hiring" },
+  { agent: "taylor", label: "tailoring", desc: "crafting targeted resumes" },
+  { agent: "echo", label: "submission", desc: "applying to matched positions" },
+  { agent: "aria", label: "interview prep", desc: "generating prep materials" },
 ];
 
 export default function PipelineView({
@@ -101,7 +101,6 @@ export default function PipelineView({
             return (
               <div key={stage.agent} className="stage-wrapper">
                 <div className={`stage-card ${ss.status}`}>
-                  <span className="stage-emoji">{stage.emoji}</span>
                   <span className="stage-label">{stage.label}</span>
                   <span className="stage-desc">{stage.desc}</span>
                   <span className={`stage-status-badge ${ss.status}`}>{ss.status}</span>

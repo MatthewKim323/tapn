@@ -21,7 +21,6 @@ const AGENTS = [
   {
     id: "tapn",
     gatewayId: "main",
-    emoji: "🎯",
     name: "tapn",
     role: "conductor / orchestrator",
     description:
@@ -30,7 +29,6 @@ const AGENTS = [
   {
     id: "scout",
     gatewayId: "scout",
-    emoji: "🔍",
     name: "scout",
     role: "job discovery",
     description:
@@ -39,7 +37,6 @@ const AGENTS = [
   {
     id: "taylor",
     gatewayId: "taylor",
-    emoji: "📝",
     name: "taylor",
     role: "resume tailoring",
     description:
@@ -48,7 +45,6 @@ const AGENTS = [
   {
     id: "echo",
     gatewayId: "echo",
-    emoji: "🌐",
     name: "echo",
     role: "application submission",
     description:
@@ -57,7 +53,6 @@ const AGENTS = [
   {
     id: "hermes",
     gatewayId: "hermes",
-    emoji: "📅",
     name: "hermes",
     role: "interview scheduling",
     description:
@@ -66,7 +61,6 @@ const AGENTS = [
   {
     id: "aria",
     gatewayId: "aria",
-    emoji: "🎤",
     name: "aria",
     role: "interview prep",
     description:
@@ -80,7 +74,7 @@ const NAV_ITEMS = [
   { key: "agents", icon: "⬡", label: "agents" },
   { key: "pipeline", icon: "▹", label: "pipeline" },
   { key: "resumes", icon: "◇", label: "resumes" },
-  { key: "interviewer", icon: "🎤", label: "interviewer" },
+  { key: "interviewer", icon: "◈", label: "interviewer" },
 ];
 
 function timeAgo(dateStr) {
