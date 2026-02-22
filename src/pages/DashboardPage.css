@@ -2370,6 +2370,11 @@
   padding: 2px 10px;
   letter-spacing: 0.12em;
 }
+.iv-badge-retry {
+  color: #f5a623;
+  background: rgba(245, 166, 35, 0.1);
+  border-color: rgba(245, 166, 35, 0.3);
+}
 
 .iv-ready-company {
   font-family: var(--font-display);
@@ -2595,11 +2600,32 @@
   border: 1px solid rgba(255, 181, 71, 0.2);
 }
 
+.iv-completed-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: auto;
+}
 .iv-completed-date {
   font-family: var(--font-mono);
   font-size: 0.6rem;
   color: var(--text-muted);
-  margin-top: auto;
+}
+.iv-retry-btn {
+  font-family: var(--font-mono);
+  font-size: 0.55rem;
+  letter-spacing: 0.1em;
+  color: #f5a623;
+  background: rgba(245, 166, 35, 0.08);
+  border: 1px solid rgba(245, 166, 35, 0.25);
+  border-radius: 100px;
+  padding: 3px 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+.iv-retry-btn:hover {
+  background: rgba(245, 166, 35, 0.18);
+  border-color: rgba(245, 166, 35, 0.5);
 }
 
 /* ── Debrief Panel ── */

@@ -24,6 +24,12 @@ export default function InterviewerView({ applications, timeAgo }) {
   const [elapsedTime, setElapsedTime] = useState(0);
   const timerRef = useRef(null);
   const transcriptEndRef = useRef(null);
+  const activeSessionRef = useRef(null);
+  const transcriptRef = useRef([]);
+
+  // keep refs in sync with state
+  useEffect(() => { activeSessionRef.current = activeSession; }, [activeSession]);
+  useEffect(() => { transcriptRef.current = transcript; }, [transcript]);
 
   /* ── quick start form ── */
   const [qsCompany, setQsCompany] = useState("");
@@ -42,6 +48,21 @@ export default function InterviewerView({ applications, timeAgo }) {
     onDisconnect: () => {
       setSessionPhase("ended");
       clearInterval(timerRef.current);
+      // mark session completed in Supabase (via ref for latest values)
+      const sess = activeSessionRef.current;
+      if (sess?.id && supabase) {
+        supabase
+          .from("mock_interview_sessions")
+          .update({
+            status: "completed",
+            completed_at: new Date().toISOString(),
+            transcript: transcriptRef.current,
+          })
+          .eq("id", sess.id)
+          .then(({ error }) => {
+            if (error) console.warn("failed to mark session completed:", error);
+          });
+      }
     },
     onMessage: (message) => {
       setTranscript((prev) => [
@@ -137,9 +158,9 @@ export default function InterviewerView({ applications, timeAgo }) {
     return () => supabase.removeChannel(channel);
   }, []);
 
-  /* ── split sessions into ready vs completed ── */
+  /* ── split sessions into ready / in_progress / completed ── */
   const readySessions = useMemo(
-    () => sessions.filter((s) => s.status === "ready"),
+    () => sessions.filter((s) => s.status === "ready" || s.status === "in_progress"),
     [sessions]
   );
 
@@ -259,7 +280,22 @@ export default function InterviewerView({ applications, timeAgo }) {
     }
     setSessionPhase("ended");
     clearInterval(timerRef.current);
-  }, [conversation]);
+
+    // mark the session as completed in Supabase
+    if (activeSession?.id && supabase) {
+      supabase
+        .from("mock_interview_sessions")
+        .update({
+          status: "completed",
+          completed_at: new Date().toISOString(),
+          transcript: transcript,
+        })
+        .eq("id", activeSession.id)
+        .then(({ error }) => {
+          if (error) console.warn("failed to mark session completed:", error);
+        });
+    }
+  }, [conversation, activeSession, transcript]);
 
   const dismissSession = useCallback(() => {
     setActiveSession(null);
@@ -585,7 +621,9 @@ export default function InterviewerView({ applications, timeAgo }) {
                 transition={{ duration: 0.3, delay: i * 0.05 }}
               >
                 <div className="iv-ready-top">
-                  <span className="iv-ready-badge">ready</span>
+                  <span className={`iv-ready-badge ${session.status === "in_progress" ? "iv-badge-retry" : ""}`}>
+                    {session.status === "in_progress" ? "retry" : "ready"}
+                  </span>
                   {session.estimated_duration_minutes && (
                     <span className="iv-ready-duration">
                       ~{session.estimated_duration_minutes} min
@@ -635,7 +673,7 @@ export default function InterviewerView({ applications, timeAgo }) {
                   disabled={activeSession !== null}
                 >
                   <span className="iv-start-dot" />
-                  start {session.company} interview
+                  {session.status === "in_progress" ? "retry" : "start"} {session.company} interview
                 </button>
               </motion.div>
             ))}
@@ -714,9 +752,29 @@ export default function InterviewerView({ applications, timeAgo }) {
                   )}
                 </div>
 
-                <span className="iv-completed-date">
-                  {timeAgo(interview.completed_at || interview.created_at)}
-                </span>
+                <div className="iv-completed-bottom">
+                  <span className="iv-completed-date">
+                    {timeAgo(interview.completed_at || interview.created_at)}
+                  </span>
+                  <button
+                    className="iv-retry-btn"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      // reset to ready + re-queue
+                      if (interview.id && supabase) {
+                        supabase
+                          .from("mock_interview_sessions")
+                          .update({ status: "ready", completed_at: null })
+                          .eq("id", interview.id)
+                          .then(({ error }) => {
+                            if (error) console.warn("failed to reset session:", error);
+                          });
+                      }
+                    }}
+                  >
+                    retry
+                  </button>
+                </div>
               </motion.div>
             ))}
           </div>

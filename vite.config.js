@@ -41,8 +41,11 @@ function elevenLabsSignedUrlPlugin() {
         }
       })
 
-      // Also serve /api/interview/conversations to fetch past transcripts
-      server.middlewares.use('/api/interview/conversations', async (_req, res) => {
+      // List all past conversations
+      server.middlewares.use('/api/interview/conversations', async (req, res, next) => {
+        // only handle exact path (not sub-paths like /conversations/conv_xxx)
+        const url = new URL(req.url, 'http://localhost')
+        if (url.pathname !== '/' && url.pathname !== '') return next()
         if (!apiKey || !agentId) {
           res.writeHead(500, { 'Content-Type': 'application/json' })
           res.end(JSON.stringify({ error: 'keys not configured' }))
@@ -55,6 +58,34 @@ function elevenLabsSignedUrlPlugin() {
           )
           const data = await resp.json()
           res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify(data))
+        } catch (err) {
+          res.writeHead(500, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: err.message }))
+        }
+      })
+
+      // Fetch a specific conversation's full transcript
+      server.middlewares.use('/api/interview/conversation/', async (req, res) => {
+        if (!apiKey) {
+          res.writeHead(500, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'keys not configured' }))
+          return
+        }
+        // extract conversation_id from the URL (e.g. /api/interview/conversation/conv_xxx)
+        const convId = req.url.replace(/^\//, '').split('?')[0]
+        if (!convId) {
+          res.writeHead(400, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ error: 'missing conversation_id' }))
+          return
+        }
+        try {
+          const resp = await fetch(
+            `https://api.elevenlabs.io/v1/convai/conversations/${convId}`,
+            { headers: { 'xi-api-key': apiKey } }
+          )
+          const data = await resp.json()
+          res.writeHead(resp.ok ? 200 : resp.status, { 'Content-Type': 'application/json' })
           res.end(JSON.stringify(data))
         } catch (err) {
           res.writeHead(500, { 'Content-Type': 'application/json' })
