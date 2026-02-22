@@ -75,11 +75,15 @@ export default function AgentsView({
         <div>
           <h1 className="view-title">agent fleet</h1>
           <p className="view-subtitle">
-            {gatewayOnline ? "gateway connected — 6 agents standing by" : "gateway offline"}
+            {gatewayOnline
+              ? "gateway connected — 6 agents standing by"
+              : "gateway offline"}
           </p>
         </div>
         <div className="fleet-status-row">
-          <span className={`fleet-indicator ${gatewayOnline ? "online" : "offline"}`} />
+          <span
+            className={`fleet-indicator ${gatewayOnline ? "online" : "offline"}`}
+          />
           <span className="fleet-label">
             {gatewayOnline ? "all systems nominal" : "agents unavailable"}
           </span>
@@ -102,45 +106,59 @@ export default function AgentsView({
             return (
               <motion.div
                 key={agent.id}
-                className={`agent-card-full ${isSelected ? "selected" : ""}`}
+                className={`acard ${isSelected ? "acard--selected" : ""}`}
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.35, delay: i * 0.06 }}
                 onClick={() => setSelectedAgent(isSelected ? null : agent)}
               >
-                <div className="agent-card-header">
-                  <div className="agent-identity">
-                    <div>
-                      <h3 className="agent-name-lg">{agent.name}</h3>
-                      <span className="agent-role-sm">{agent.role}</span>
+                {/* ── Avatar ── */}
+                <div className="acard-visual">
+                  <img
+                    src={agent.avatar}
+                    alt={agent.name}
+                    className="acard-avatar"
+                    loading="lazy"
+                    style={{
+                      ...(agent.avatarPos ? { objectPosition: agent.avatarPos } : {}),
+                      ...(agent.avatarShift ? { marginTop: `${-50 + agent.avatarShift}px` } : {}),
+                    }}
+                  />
+                  <div className="acard-fade" />
+                  <span className={`acard-status-pip ${status}`} />
+                </div>
+
+                {/* ── Info overlay ── */}
+                <div className="acard-info">
+                  <div className="acard-top-row">
+                    <h3 className="acard-name">{agent.name}</h3>
+                    <span className={`acard-status-tag ${status}`}>
+                      {status}
+                    </span>
+                  </div>
+                  <span className="acard-role">{agent.role}</span>
+                  <p className="acard-desc">{agent.description}</p>
+
+                  <div className="acard-meta">
+                    <div className="acard-meta-item">
+                      <span className="acard-meta-label">last action</span>
+                      <span className="acard-meta-val">
+                        {lastAction ? lastAction.action : "—"}
+                      </span>
+                    </div>
+                    <div className="acard-meta-item">
+                      <span className="acard-meta-label">last seen</span>
+                      <span className="acard-meta-val">
+                        {lastAction
+                          ? timeAgo(lastAction.created_at)
+                          : "never"}
+                      </span>
                     </div>
                   </div>
-                  <span className={`agent-status-badge ${status}`}>{status}</span>
-                </div>
 
-                <p className="agent-desc">{agent.description}</p>
-
-                <div className="agent-meta-row">
-                  <div className="agent-meta">
-                    <span className="meta-label">gateway id</span>
-                    <span className="meta-value">{agent.gatewayId}</span>
-                  </div>
-                  <div className="agent-meta">
-                    <span className="meta-label">last action</span>
-                    <span className="meta-value">
-                      {lastAction ? lastAction.action : "—"}
-                    </span>
-                  </div>
-                  <div className="agent-meta">
-                    <span className="meta-label">last seen</span>
-                    <span className="meta-value">
-                      {lastAction ? timeAgo(lastAction.created_at) : "never"}
-                    </span>
-                  </div>
-                </div>
-
-                <div className="agent-card-arrow">
-                  {isSelected ? "▾" : "▸"} {isSelected ? "hide logs" : "view logs"}
+                  <span className="acard-expand-hint">
+                    {isSelected ? "▾ hide logs" : "▸ view logs"}
+                  </span>
                 </div>
               </motion.div>
             );
@@ -159,9 +177,18 @@ export default function AgentsView({
             >
               <div className="detail-panel-header">
                 <div className="detail-panel-identity">
+                  <img
+                    src={selectedAgent.avatar}
+                    alt={selectedAgent.name}
+                    className="detail-panel-avatar"
+                  />
                   <div>
-                    <h2 className="detail-panel-name">{selectedAgent.name}</h2>
-                    <span className="detail-panel-role">{selectedAgent.role}</span>
+                    <h2 className="detail-panel-name">
+                      {selectedAgent.name}
+                    </h2>
+                    <span className="detail-panel-role">
+                      {selectedAgent.role}
+                    </span>
                   </div>
                 </div>
                 <button
@@ -178,7 +205,9 @@ export default function AgentsView({
 
               <div className="detail-panel-stats">
                 <div className="panel-stat">
-                  <span className="panel-stat-value">{agentLogs.length}</span>
+                  <span className="panel-stat-value">
+                    {agentLogs.length}
+                  </span>
                   <span className="panel-stat-label">total logs</span>
                 </div>
                 <div className="panel-stat">
@@ -213,16 +242,23 @@ export default function AgentsView({
                     {agentLogs.map((log) => (
                       <div key={log.id} className="panel-log-entry">
                         <div className="log-entry-header">
-                          <span className={`log-dot ${log.status === "error" ? "error" : ""}`} />
+                          <span
+                            className={`log-dot ${log.status === "error" ? "error" : ""}`}
+                          />
                           <span className="log-action">{log.action}</span>
-                          <span className={`log-status ${log.status}`}>{log.status}</span>
-                          <span className="log-time">{timeAgo(log.created_at)}</span>
+                          <span className={`log-status ${log.status}`}>
+                            {log.status}
+                          </span>
+                          <span className="log-time">
+                            {timeAgo(log.created_at)}
+                          </span>
                         </div>
-                        {log.details && Object.keys(log.details).length > 0 && (
-                          <pre className="log-details">
-                            {JSON.stringify(log.details, null, 2)}
-                          </pre>
-                        )}
+                        {log.details &&
+                          Object.keys(log.details).length > 0 && (
+                            <pre className="log-details">
+                              {JSON.stringify(log.details, null, 2)}
+                            </pre>
+                          )}
                       </div>
                     ))}
                   </div>

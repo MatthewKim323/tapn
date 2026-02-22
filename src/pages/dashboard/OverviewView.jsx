@@ -88,6 +88,11 @@ export default function OverviewView({
                 onClick={() => onNavigate("agents", agent.id)}
               >
                 <div className="agent-top">
+                  <img
+                    src={agent.avatar}
+                    alt={agent.name}
+                    className="agent-thumb"
+                  />
                   <span className={`agent-status-badge ${status}`}>{status}</span>
                 </div>
                 <h3 className="agent-name">{agent.name}</h3>

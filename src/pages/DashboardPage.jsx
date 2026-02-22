@@ -25,6 +25,8 @@ const AGENTS = [
     role: "conductor / orchestrator",
     description:
       "coordinates the pipeline, delegates tasks, reports to you via telegram",
+    avatar: "/profiles/Tapn.png",
+    avatarPos: "center 20%",
   },
   {
     id: "scout",
@@ -33,6 +35,8 @@ const AGENTS = [
     role: "job discovery",
     description:
       "finds companies actively hiring using workforce data + careers page scraping",
+    avatar: "/profiles/Scout.png",
+    avatarPos: "center 20%",
   },
   {
     id: "taylor",
@@ -41,6 +45,8 @@ const AGENTS = [
     role: "resume tailoring",
     description:
       "analyzes each jd and produces an ats-optimized, keyword-matched resume",
+    avatar: "/profiles/Taylor.png",
+    avatarPos: "center 20%",
   },
   {
     id: "echo",
@@ -49,6 +55,8 @@ const AGENTS = [
     role: "application submission",
     description:
       "navigates application forms, fills fields, uploads resumes, submits",
+    avatar: "/profiles/Echo.png",
+    avatarShift: 40,
   },
   {
     id: "hermes",
@@ -57,6 +65,8 @@ const AGENTS = [
     role: "interview scheduling",
     description:
       "monitors inbox for invitations, checks availability, books interviews",
+    avatar: "/profiles/Hermes.png",
+    avatarShift: 40,
   },
   {
     id: "aria",
@@ -65,6 +75,8 @@ const AGENTS = [
     role: "interview prep",
     description:
       "generates prep materials + conducts ai voice mock interviews",
+    avatar: "/profiles/Aria.png",
+    avatarShift: 40,
   },
 ];
 
