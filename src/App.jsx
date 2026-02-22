@@ -66,17 +66,7 @@ function App() {
       <Route path="/" element={<LandingPage />} />
       <Route
         path="/login"
-        element={
-          session ? (
-            profile?.onboarding_complete ? (
-              <Navigate to="/dashboard" replace />
-            ) : (
-              <Navigate to="/onboarding" replace />
-            )
-          ) : (
-            <LoginPage />
-          )
-        }
+        element={<LoginPage />}
       />
       <Route
         path="/onboarding"
