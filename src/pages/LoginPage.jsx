@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
@@ -12,6 +12,13 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+
+  // Clear any stale session so the login page always shows fresh
+  useEffect(() => {
+    if (supabase) {
+      supabase.auth.signOut();
+    }
+  }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();

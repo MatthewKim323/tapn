@@ -1,0 +1,20 @@
+{
+  "name": "openclaw-hook-supabase-logger",
+  "version": "1.0.0",
+  "type": "module",
+  "main": "handler.js",
+  "openclaw": {
+    "hooks": [
+      {
+        "name": "supabase-logger",
+        "description": "Log all agent command events to Supabase agent_logs table",
+        "emoji": "🗃️",
+        "events": ["command"],
+        "handler": "./handler.js"
+      }
+    ]
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.49.0"
+  }
+}
