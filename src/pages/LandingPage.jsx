@@ -96,7 +96,7 @@ function LandingPage() {
           </h1>
           {isIntroComplete && (
             <SplitText
-              text="your autonomous job pipeline"
+              text="your autonomous job assistant"
               className="subhead"
               tag="p"
               delay={100}
