@@ -139,8 +139,8 @@
 
 .onboarding-field .field-label {
   font-family: var(--font-mono);
-  font-size: 0.68rem;
-  color: var(--text-muted);
+  font-size: 1rem;
+  color: var(--text-primary);
   letter-spacing: 0.12em;
   display: flex;
   align-items: center;
@@ -162,11 +162,11 @@
 .onboarding-field .field-input {
   background: transparent;
   border: none;
-  border-bottom: 1px solid var(--border-bright);
+  border-bottom: 1px solid var(--text-secondary);
   padding: 10px 0;
   font-family: var(--font-mono);
-  font-size: 0.85rem;
-  color: var(--text-bright);
+  font-size: 1rem;
+  color: #ffffff;
   outline: none;
   transition: border-color 0.3s ease;
   width: 100%;
@@ -174,7 +174,8 @@
 }
 
 .onboarding-field .field-input::placeholder {
-  color: var(--text-muted);
+  color: var(--text-secondary);
+  opacity: 0.5;
 }
 
 .onboarding-field .field-input:focus {
@@ -357,20 +358,21 @@
 }
 
 .nav-btn {
-  padding: 12px 28px;
+  padding: 14px 36px;
   border: 1px solid var(--border-bright);
   border-radius: var(--radius-md);
   background: transparent;
   font-family: var(--font-display);
-  font-size: 0.85rem;
-  font-weight: 600;
+  font-size: 1rem;
+  font-weight: 700;
   cursor: pointer;
   transition: all 0.3s ease;
-  letter-spacing: 0.04em;
+  letter-spacing: 0.08em;
 }
 
 .nav-prev {
-  color: var(--text-secondary);
+  color: var(--text-primary);
+  border-color: var(--text-secondary);
 }
 
 .nav-prev:hover:not(:disabled) {
@@ -385,15 +387,16 @@
 
 .nav-next,
 .nav-finish {
-  color: var(--accent);
+  color: #fff;
   border-color: var(--accent-dim);
+  box-shadow: 0 0 24px rgba(155, 89, 212, 0.4);
 }
 
 .nav-next:hover:not(:disabled),
 .nav-finish:hover:not(:disabled) {
   background: var(--accent-glow);
   border-color: var(--accent);
-  box-shadow: 0 0 20px rgba(255, 107, 107, 0.1);
+  box-shadow: 0 0 40px rgba(155, 89, 212, 0.6);
 }
 
 .nav-next:disabled,
@@ -433,4 +436,11 @@
   .onboarding-back-home {
     left: 20px;
   }
+}
+
+.onboarding-step,
+.onboarding-step input,
+.onboarding-step textarea,
+.onboarding-step select {
+  text-transform: uppercase;
 }

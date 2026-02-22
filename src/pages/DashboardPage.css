@@ -5,6 +5,7 @@
   background: #000;
   overflow: hidden;
   position: relative;
+  text-transform: capitalize;
 }
 
 .dashboard-terminal-bg {
@@ -97,6 +98,7 @@
   transition: all 0.2s;
   white-space: nowrap;
   text-align: left;
+  text-transform: capitalize;
 }
 
 .sidebar-link:hover {
@@ -491,6 +493,7 @@
   transition: all 0.3s ease;
   display: flex;
   flex-direction: column;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   gap: 6px;
 }
 
@@ -499,9 +502,11 @@
 }
 
 .agent-card:hover {
-  border-color: var(--border-bright);
-  box-shadow: 0 0 30px rgba(255, 107, 107, 0.04);
-  transform: translateY(-2px);
+  border-color: var(--accent);
+  box-shadow: 0 0 1px var(--accent-dim), 0 20px 60px rgba(0, 0, 0, 0.8), 0 0 40px rgba(155, 89, 212, 0.25);
+  transform: translateY(-8px) scale(1.05);
+  z-index: 10;
+  background: rgba(20, 15, 40, 0.95);
 }
 
 .agent-top {
@@ -721,6 +726,12 @@
 
 .agent-card-full:hover .agent-card-arrow {
   color: var(--accent);
+}
+
+.agents-grid:has(.agent-card:hover) .agent-card:not(:hover) {
+  opacity: 0.5;
+  filter: brightness(0.6);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* --- Agent Detail Panel --- */

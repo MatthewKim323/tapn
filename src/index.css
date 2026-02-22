@@ -9,16 +9,16 @@
   --bg-primary: #050510;     /* alias */
 
   /* Text */
-  --text-bright: #F0E6FF;    /* warm white, lavender tint */
-  --text-primary: #E0D6F0;
+  --text-bright:  #B8B0C8;     /* warm white, lavender tint */
+  --text-primary: #A8A0BC;
   --text-secondary: #9B8AB8; /* muted purple */
   --text-muted: #564B6E;     /* dim violet-gray */
 
   /* Accent — warm coral-pink (matches the pink/red stars) */
-  --accent: #FF6B6B;
-  --accent-dim: rgba(255, 107, 107, 0.3);
-  --accent-glow: rgba(255, 107, 107, 0.08);
-  --accent-strong: #FF8A8A;
+  --accent: #9B59D4;
+  --accent-dim: rgba(155, 89, 212, 0.3);
+  --accent-glow:  rgba(155, 89, 212, 0.08);
+  --accent-strong: #9B59D4;
 
   /* Secondary accent — amber/orange (matches orange stars) */
   --warning: #FFB547;

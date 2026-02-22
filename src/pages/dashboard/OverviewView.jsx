@@ -17,10 +17,10 @@ export default function OverviewView({
   timeAgo,
 }) {
   const STAT_ITEMS = [
-    { label: "applications", value: String(stats.applications), icon: "◎" },
-    { label: "interviews", value: String(stats.interviews), icon: "◈" },
-    { label: "resumes generated", value: String(stats.resumesGenerated), icon: "◇" },
-    { label: "pipeline runs", value: String(stats.pipelineRuns), icon: "▹" },
+    { label: "applications", value: String(stats.applications) },
+    { label: "interviews", value: String(stats.interviews) },
+    { label: "resumes generated", value: String(stats.resumesGenerated) },
+    { label: "pipeline runs", value: String(stats.pipelineRuns) },
   ];
 
   return (
@@ -34,11 +34,6 @@ export default function OverviewView({
       >
         <div className="welcome-text">
           <h1 className="welcome-title">welcome back, {userName}</h1>
-          <p className="welcome-sub">
-            {gatewayOnline
-              ? "your agent fleet is connected and standing by."
-              : "start the openclaw gateway to connect your agents."}
-          </p>
         </div>
         <button
           className="welcome-cta"
@@ -74,7 +69,7 @@ export default function OverviewView({
         transition={{ duration: 0.6, delay: 0.2 }}
       >
         <div className="section-header">
-          <h2 className="section-title">agent fleet</h2>
+          <h2 className="section-title">agents</h2>
           <button className="section-link" onClick={() => onNavigate("agents")}>
             view all →
           </button>
@@ -155,7 +150,7 @@ export default function OverviewView({
           <div className="section-header">
             <h2 className="section-title">recent applications</h2>
             <button className="section-link" onClick={() => onNavigate("applications")}>
-              view all →
+              View All →
             </button>
           </div>
           <div className="applications-table">

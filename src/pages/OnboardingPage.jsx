@@ -3,18 +3,18 @@ import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
 import { generateUserMd } from "../lib/generateUserMd";
-import FaultyTerminal from "../components/FaultyTerminal";
+import StarNest from "../components/StarNest";
 import "./OnboardingPage.css";
 
 const STEPS = [
   { id: "identity", num: "01", title: "identity", subtitle: "who are you?" },
-  { id: "career", num: "02", title: "career", subtitle: "what do you want?" },
-  { id: "skills", num: "03", title: "skills", subtitle: "what can you do?" },
+  { id: "career", num: "02", title: "career", subtitle: "target interests/experience" },
+  { id: "skills", num: "03", title: "skills", subtitle: "technical background" },
   {
     id: "preferences",
     num: "04",
     title: "preferences",
-    subtitle: "what matters to you?",
+    subtitle: "preferences?",
   },
   {
     id: "schedule",
@@ -237,22 +237,7 @@ export default function OnboardingPage({ session, onProfileUpdate }) {
     <div className="onboarding-page">
       {/* FaultyTerminal WebGL background */}
       <div className="onboarding-terminal-bg">
-        <FaultyTerminal
-          scale={1.5}
-          gridMul={[2, 1]}
-          digitSize={1.2}
-          timeScale={0.35}
-          scanlineIntensity={0.35}
-          glitchAmount={0.8}
-          flickerAmount={0.7}
-          noiseAmp={0.7}
-          curvature={0.06}
-          tint="#C77DFF"
-          mouseReact
-          mouseStrength={0.3}
-          pageLoadAnimation
-          brightness={0.25}
-        />
+        <StarNest />
       </div>
 
       {/* Progress bar */}
@@ -273,7 +258,7 @@ export default function OnboardingPage({ session, onProfileUpdate }) {
 
       {/* Back to home */}
       <button className="onboarding-back-home" onClick={() => navigate("/")}>
-        ← tapn
+        ← TAPN
       </button>
 
       {/* Main content */}
@@ -308,7 +293,7 @@ export default function OnboardingPage({ session, onProfileUpdate }) {
                       placeholder="your name"
                     />
                   </Field>
-                  <Field label="phone">
+                  <Field label="phone#">
                     <input
                       className="field-input"
                       value={formData.phone}
@@ -350,7 +335,7 @@ export default function OnboardingPage({ session, onProfileUpdate }) {
               {/* ═══ Step 2: Career ═══ */}
               {step === 1 && (
                 <>
-                  <Field label="current_title">
+                  <Field label="current title">
                     <input
                       className="field-input"
                       value={formData.currentTitle}
@@ -360,7 +345,7 @@ export default function OnboardingPage({ session, onProfileUpdate }) {
                       placeholder="e.g. data engineer"
                     />
                   </Field>
-                  <Field label="years_experience">
+                  <Field label="years experience">
                     <input
                       className="field-input"
                       value={formData.yearsExperience}
@@ -370,21 +355,21 @@ export default function OnboardingPage({ session, onProfileUpdate }) {
                       placeholder="e.g. 3"
                     />
                   </Field>
-                  <Field label="target_roles" hint="press enter to add" required>
+                  <Field label="target roles" hint="press enter to add" required>
                     <TagInput
                       value={formData.targetRoles}
                       onChange={(v) => updateField("targetRoles", v)}
                       placeholder="e.g. ml engineer, data scientist"
                     />
                   </Field>
-                  <Field label="target_industries" hint="press enter to add">
+                  <Field label="target industries" hint="press enter to add">
                     <TagInput
                       value={formData.targetIndustries}
                       onChange={(v) => updateField("targetIndustries", v)}
                       placeholder="e.g. tech, finance, healthcare"
                     />
                   </Field>
-                  <Field label="professional_summary">
+                  <Field label="professional summary">
                     <textarea
                       className="field-input field-textarea"
                       value={formData.bio}
@@ -399,14 +384,14 @@ export default function OnboardingPage({ session, onProfileUpdate }) {
               {/* ═══ Step 3: Skills ═══ */}
               {step === 2 && (
                 <>
-                  <Field label="technical_skills" hint="press enter to add">
+                  <Field label="technical skills" hint="press enter to add">
                     <TagInput
                       value={formData.technicalSkills}
                       onChange={(v) => updateField("technicalSkills", v)}
                       placeholder="python, sql, tensorflow, react..."
                     />
                   </Field>
-                  <Field label="top_strengths" hint="press enter to add">
+                  <Field label="top strengths" hint="press enter to add">
                     <TagInput
                       value={formData.topStrengths}
                       onChange={(v) => updateField("topStrengths", v)}
@@ -424,7 +409,7 @@ export default function OnboardingPage({ session, onProfileUpdate }) {
                         placeholder="b.s."
                       />
                     </Field>
-                    <Field label="field_of_study">
+                    <Field label="field of study">
                       <input
                         className="field-input"
                         value={formData.educationField}
@@ -446,7 +431,7 @@ export default function OnboardingPage({ session, onProfileUpdate }) {
                         placeholder="university name"
                       />
                     </Field>
-                    <Field label="grad_year">
+                    <Field label="grad year">
                       <input
                         className="field-input"
                         value={formData.educationYear}
@@ -457,7 +442,7 @@ export default function OnboardingPage({ session, onProfileUpdate }) {
                       />
                     </Field>
                   </div>
-                  <Field label="work_authorization">
+                  <Field label="work authorization">
                     <select
                       className="field-input field-select"
                       value={formData.workAuthorization}
@@ -481,7 +466,7 @@ export default function OnboardingPage({ session, onProfileUpdate }) {
               {/* ═══ Step 4: Preferences ═══ */}
               {step === 3 && (
                 <>
-                  <Field label="work_type">
+                  <Field label="work type">
                     <div className="radio-group">
                       {["remote", "hybrid", "onsite", "flexible"].map((opt) => (
                         <button
@@ -497,7 +482,7 @@ export default function OnboardingPage({ session, onProfileUpdate }) {
                       ))}
                     </div>
                   </Field>
-                  <Field label="minimum_salary">
+                  <Field label="minimum salary">
                     <input
                       className="field-input"
                       value={formData.minSalary}
@@ -505,7 +490,7 @@ export default function OnboardingPage({ session, onProfileUpdate }) {
                       placeholder="e.g. $120,000"
                     />
                   </Field>
-                  <Field label="company_size_preference">
+                  <Field label="company size preference">
                     <div className="radio-group">
                       {["startup", "mid-size", "enterprise", "any"].map(
                         (opt) => (
@@ -521,21 +506,21 @@ export default function OnboardingPage({ session, onProfileUpdate }) {
                       )}
                     </div>
                   </Field>
-                  <Field label="must_have_criteria" hint="press enter to add">
+                  <Field label="must have criteria" hint="press enter to add">
                     <TagInput
                       value={formData.mustHaveCriteria}
                       onChange={(v) => updateField("mustHaveCriteria", v)}
                       placeholder="e.g. health insurance, 401k"
                     />
                   </Field>
-                  <Field label="deal_breaker_keywords" hint="press enter to add">
+                  <Field label="deal breaker keywords" hint="press enter to add">
                     <TagInput
                       value={formData.dealBreakerKeywords}
                       onChange={(v) => updateField("dealBreakerKeywords", v)}
                       placeholder="keywords that disqualify a job..."
                     />
                   </Field>
-                  <Field label="blacklisted_companies" hint="press enter to add">
+                  <Field label="blacklisted companies" hint="press enter to add">
                     <TagInput
                       value={formData.blacklistedCompanies}
                       onChange={(v) => updateField("blacklistedCompanies", v)}
@@ -548,7 +533,7 @@ export default function OnboardingPage({ session, onProfileUpdate }) {
               {/* ═══ Step 5: Schedule ═══ */}
               {step === 4 && (
                 <>
-                  <Field label="available_hours">
+                  <Field label="available hours">
                     <input
                       className="field-input"
                       value={formData.availableHours}
@@ -568,7 +553,7 @@ export default function OnboardingPage({ session, onProfileUpdate }) {
                       placeholder="e.g. america/los_angeles"
                     />
                   </Field>
-                  <Field label="communication_style">
+                  <Field label="communication style">
                     <div className="radio-group">
                       {["brief", "detailed", "casual", "formal"].map((opt) => (
                         <button
@@ -585,26 +570,7 @@ export default function OnboardingPage({ session, onProfileUpdate }) {
                     </div>
                   </Field>
 
-                  {/* USER.md Preview */}
-                  <div className="usermd-preview">
-                    <div className="preview-header">
-                      <span className="preview-label">user.md preview</span>
-                      <button
-                        className="preview-download"
-                        onClick={downloadUserMd}
-                        type="button"
-                      >
-                        ↓ download
-                      </button>
-                    </div>
-                    <pre className="preview-content">
-                      {generateUserMd({
-                        ...formData,
-                        email: session?.user?.email || "",
-                      }).slice(0, 600)}
-                      ...
-                    </pre>
-                  </div>
+  
                 </>
               )}
             </div>

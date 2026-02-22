@@ -6,8 +6,8 @@ import { useAgentActivity } from "../hooks/useAgentActivity";
 import { useApplications } from "../hooks/useApplications";
 import { useAgentStatus } from "../hooks/useAgentStatus";
 import { useDashboardStats } from "../hooks/useDashboardStats";
-import FaultyTerminal from "../components/FaultyTerminal";
-
+import StarNest from "../components/StarNest";
+import Dither from "../components/Dither";
 import OverviewView from "./dashboard/OverviewView";
 import ApplicationsView from "./dashboard/ApplicationsView";
 import AgentsView from "./dashboard/AgentsView";
@@ -265,21 +265,15 @@ export default function DashboardPage({ session, profile }) {
     <div className="dashboard-page">
       {/* FaultyTerminal WebGL background */}
       <div className="dashboard-terminal-bg">
-        <FaultyTerminal
-          scale={1.5}
-          gridMul={[2, 1]}
-          digitSize={1.2}
-          timeScale={0.3}
-          scanlineIntensity={0.3}
-          glitchAmount={0.8}
-          flickerAmount={0.6}
-          noiseAmp={0.6}
-          curvature={0.05}
-          tint="#FF6B6B"
-          mouseReact
-          mouseStrength={0.3}
-          pageLoadAnimation
-          brightness={0.2}
+        <Dither
+          waveColor={[0.12, 0.07, 0.28]}
+          waveSpeed={0.05}
+          waveFrequency={3}
+          waveAmplitude={0.3}
+          colorNum={4}
+          pixelSize={2}
+          enableMouseInteraction={false}
+          mouseRadius={0.3}
         />
       </div>
 
