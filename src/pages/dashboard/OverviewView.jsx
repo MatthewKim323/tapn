@@ -42,11 +42,11 @@ export default function OverviewView({
         </div>
         <button
           className="welcome-cta"
-          onClick={initializePipeline}
-          disabled={pipelineLoading || !gatewayOnline}
+          onClick={() => window.open("http://127.0.0.1:18789/__openclaw__/canvas/", "_blank")}
+          disabled={!gatewayOnline}
         >
           <span className={`cta-pulse ${gatewayOnline ? "" : "offline"}`} />
-          {pipelineLoading ? "spawning..." : "initialize pipeline"}
+          open command center
         </button>
       </motion.section>
 

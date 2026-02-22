@@ -11,9 +11,9 @@ How to connect the OpenClaw agent ecosystem to your webapp. Everything the front
 Every agent already writes here. Your webapp just reads what they're producing.
 
 ```
-Project URL:  https://REDACTED_SUPABASE_HOST
-Service Key:  REDACTED_SERVICE_KEY
-User UUID:    REDACTED_USER_UUID
+Project URL:  <YOUR_SUPABASE_URL>
+Service Key:  <YOUR_SUPABASE_SERVICE_KEY>
+User UUID:    <YOUR_USER_UUID>
 ```
 
 > **Important:** Use an **anon key** for the frontend client, not the service role key. The service role key bypasses RLS. Generate an anon key from the Supabase dashboard (Settings → API) and set up RLS policies.
@@ -22,7 +22,7 @@ User UUID:    REDACTED_USER_UUID
 
 ```
 URL:    http://localhost:18789
-Auth:   Bearer REDACTED_GATEWAY_TOKEN
+Auth:   Bearer <YOUR_GATEWAY_TOKEN>
 Mode:   Local (loopback only)
 ```
 
@@ -244,12 +244,12 @@ export const supabaseAdmin = createClient(
 
 ```env
 # .env.local
-NEXT_PUBLIC_SUPABASE_URL=https://REDACTED_SUPABASE_HOST
-NEXT_PUBLIC_SUPABASE_ANON_KEY=...   # Get from Supabase dashboard → Settings → API
-SUPABASE_URL=https://REDACTED_SUPABASE_HOST
-SUPABASE_SERVICE_KEY=REDACTED_SERVICE_KEY
+NEXT_PUBLIC_SUPABASE_URL=<YOUR_SUPABASE_URL>
+NEXT_PUBLIC_SUPABASE_ANON_KEY=<YOUR_SUPABASE_ANON_KEY>
+SUPABASE_URL=<YOUR_SUPABASE_URL>
+SUPABASE_SERVICE_KEY=<YOUR_SUPABASE_SERVICE_KEY>
 OPENCLAW_GATEWAY_URL=http://localhost:18789
-OPENCLAW_GATEWAY_TOKEN=REDACTED_GATEWAY_TOKEN
+OPENCLAW_GATEWAY_TOKEN=<YOUR_GATEWAY_TOKEN>
 ```
 
 ---
