@@ -1,62 +1,101 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useConversation } from "@elevenlabs/react";
 import { supabase } from "../../lib/supabase";
 
-const ELEVENLABS_AGENT_ID = import.meta.env.VITE_ELEVENLABS_AGENT_ID;
+/* ═══════════════════════════════════════════
+   INTERVIEWER VIEW — ElevenLabs Voice AI
+   Now powered by mock_interview_sessions table
+   ═══════════════════════════════════════════ */
 
 export default function InterviewerView({ applications, timeAgo }) {
-  const [mockInterviews, setMockInterviews] = useState([]);
-  const [readyApps, setReadyApps] = useState([]);
+  /* ── data state ── */
+  const [sessions, setSessions] = useState([]);     // all from mock_interview_sessions
   const [ariaLogs, setAriaLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedInterview, setSelectedInterview] = useState(null);
-  const [activeSession, setActiveSession] = useState(null);
-  const [sessionStatus, setSessionStatus] = useState("idle"); // idle | loading | active | ended
-  const [micError, setMicError] = useState(null);
+
+  /* ── session state ── */
+  const [activeSession, setActiveSession] = useState(null); // the row or quick-start obj
   const [transcript, setTranscript] = useState([]);
+  const [sessionPhase, setSessionPhase] = useState("idle");
+  // idle → connecting → active → ended
+  const [micError, setMicError] = useState(null);
+  const [elapsedTime, setElapsedTime] = useState(0);
+  const timerRef = useRef(null);
   const transcriptEndRef = useRef(null);
 
-  // ElevenLabs conversation hook
+  /* ── quick start form ── */
+  const [qsCompany, setQsCompany] = useState("");
+  const [qsRole, setQsRole] = useState("");
+
+  /* ── ElevenLabs conversation hook ── */
   const conversation = useConversation({
     onConnect: () => {
-      setSessionStatus("active");
+      setSessionPhase("active");
       setMicError(null);
+      timerRef.current = setInterval(
+        () => setElapsedTime((t) => t + 1),
+        1000
+      );
     },
     onDisconnect: () => {
-      setSessionStatus("ended");
-      // Auto-close after a few seconds
-      setTimeout(() => {
-        setActiveSession(null);
-        setSessionStatus("idle");
-        setTranscript([]);
-      }, 5000);
+      setSessionPhase("ended");
+      clearInterval(timerRef.current);
     },
     onMessage: (message) => {
       setTranscript((prev) => [
         ...prev,
-        { role: "agent", text: message.message, ts: Date.now() },
+        {
+          role: message.source === "ai" ? "ai" : "user",
+          text: message.message,
+          ts: Date.now(),
+        },
       ]);
     },
     onError: (error) => {
-      console.error("ElevenLabs error:", error);
+      console.error("elevenlabs error:", error);
       setMicError(error?.message || "connection error");
-      setSessionStatus("idle");
+      setSessionPhase("idle");
+      clearInterval(timerRef.current);
     },
   });
 
-  // Auto-scroll transcript
+  /* ── derived status label ── */
+  const statusLabel = useMemo(() => {
+    if (sessionPhase === "connecting") return "connecting...";
+    if (sessionPhase === "ended") return "interview complete";
+    if (sessionPhase !== "active") return "";
+    if (conversation.isSpeaking) return "interviewer speaking";
+    return "listening";
+  }, [sessionPhase, conversation.isSpeaking]);
+
+  /* ── auto-scroll transcript ── */
   useEffect(() => {
     transcriptEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [transcript]);
 
-  // Fetch mock interview data
+  /* ── cleanup timer on unmount ── */
   useEffect(() => {
-    if (!supabase) return;
+    return () => clearInterval(timerRef.current);
+  }, []);
+
+  /* ── format mm:ss ── */
+  function fmtTime(s) {
+    const m = Math.floor(s / 60);
+    const sec = s % 60;
+    return `${String(m).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+  }
+
+  /* ═══════════════════════════════════
+     FETCH from mock_interview_sessions
+     ═══════════════════════════════════ */
+  useEffect(() => {
+    if (!supabase) { setLoading(false); return; }
 
     Promise.all([
       supabase
-        .from("mock_interviews")
+        .from("mock_interview_sessions")
         .select("*")
         .order("created_at", { ascending: false })
         .limit(50),
@@ -66,21 +105,24 @@ export default function InterviewerView({ applications, timeAgo }) {
         .eq("agent_name", "aria")
         .order("created_at", { ascending: false })
         .limit(30),
-    ]).then(([interviewsRes, logsRes]) => {
-      if (!interviewsRes.error) setMockInterviews(interviewsRes.data || []);
+    ]).then(([sessionsRes, logsRes]) => {
+      if (!sessionsRes.error) setSessions(sessionsRes.data || []);
       if (!logsRes.error) setAriaLogs(logsRes.data || []);
       setLoading(false);
     });
 
-    // Live subscription for new interviews
+    // real-time subscription on mock_interview_sessions
     const channel = supabase
-      .channel("interviews")
+      .channel("mock-sessions-live")
       .on(
         "postgres_changes",
-        { event: "*", schema: "public", table: "mock_interviews" },
+        { event: "*", schema: "public", table: "mock_interview_sessions" },
         (payload) => {
-          setMockInterviews((prev) => {
-            const idx = prev.findIndex((m) => m.id === payload.new.id);
+          setSessions((prev) => {
+            if (payload.eventType === "DELETE") {
+              return prev.filter((s) => s.id !== payload.old.id);
+            }
+            const idx = prev.findIndex((s) => s.id === payload.new.id);
             if (idx >= 0) {
               const updated = [...prev];
               updated[idx] = payload.new;
@@ -92,95 +134,129 @@ export default function InterviewerView({ applications, timeAgo }) {
       )
       .subscribe();
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => supabase.removeChannel(channel);
   }, []);
 
-  // Apps ready for mock interview
-  useEffect(() => {
-    const ready = applications.filter(
-      (a) => a.mock_interview_ready && !a.mock_interview_score
-    );
-    setReadyApps(ready);
-  }, [applications]);
+  /* ── split sessions into ready vs completed ── */
+  const readySessions = useMemo(
+    () => sessions.filter((s) => s.status === "ready"),
+    [sessions]
+  );
 
+  const completedSessions = useMemo(
+    () => sessions.filter((s) => s.status === "completed"),
+    [sessions]
+  );
+
+  const avgScore = useMemo(() => {
+    const scored = completedSessions.filter((s) => s.overall_score);
+    if (scored.length === 0) return null;
+    return Math.round(
+      scored.reduce((sum, s) => sum + Number(s.overall_score), 0) / scored.length
+    );
+  }, [completedSessions]);
+
+  /* ── score color helper ── */
   function scoreColor(score) {
     if (!score) return "";
-    if (score >= 80) return "score-high";
-    if (score >= 60) return "score-mid";
+    const n = Number(score);
+    // support both 0-10 and 0-100 scales
+    const normalized = n <= 10 ? n * 10 : n;
+    if (normalized >= 80) return "score-high";
+    if (normalized >= 60) return "score-mid";
     return "score-low";
   }
 
-  // Start a real ElevenLabs conversation session
-  const startMockInterview = useCallback(
-    async (app) => {
-      setActiveSession(app);
-      setSessionStatus("loading");
+  /* ═══════════════════════════════════
+     START / END interview
+     ═══════════════════════════════════ */
+
+  const startInterview = useCallback(
+    async (session) => {
+      // session can be a mock_interview_sessions row or a quick-start object
+      setActiveSession(session);
+      setSessionPhase("connecting");
       setMicError(null);
       setTranscript([]);
+      setElapsedTime(0);
 
       try {
-        // Request microphone access
+        // mic permission
         await navigator.mediaDevices.getUserMedia({ audio: true });
 
-        if (!ELEVENLABS_AGENT_ID) {
-          throw new Error(
-            "VITE_ELEVENLABS_AGENT_ID not set — check your .env"
-          );
+        // if this is a real DB row, mark it as in_progress
+        if (session.id && supabase) {
+          supabase
+            .from("mock_interview_sessions")
+            .update({ status: "in_progress" })
+            .eq("id", session.id)
+            .then(({ error }) => {
+              if (error) console.warn("failed to update session status:", error);
+            });
         }
 
-        // Try to load Aria's interview config for this company
-        let overrides = {};
+        // try signed URL first (keeps API key server-side)
+        let signedUrl = null;
         try {
-          const res = await fetch(
-            `/api/interviews/config/${encodeURIComponent(app.company_name)}`
-          );
+          const res = await fetch("/api/interview/signed-url");
           if (res.ok) {
-            const config = await res.json();
-            overrides = config.conversation_config_override || {};
+            const json = await res.json();
+            signedUrl = json.signedUrl;
           }
         } catch {
-          // No config found — proceed with defaults
-          console.log(
-            "No Aria config found for",
-            app.company_name,
-            "— using defaults"
-          );
+          // signed-url endpoint may not be available
         }
 
-        // Start the ElevenLabs conversation
-        await conversation.startSession({
-          agentId: ELEVENLABS_AGENT_ID,
-          ...overrides,
-        });
+        if (signedUrl) {
+          await conversation.startSession({ signedUrl });
+        } else {
+          // fallback: use the agent_id from the session row, or env var
+          const agentId =
+            session.agent_id || import.meta.env.VITE_ELEVENLABS_AGENT_ID;
+          if (!agentId)
+            throw new Error("no agent_id found — check session or .env");
+          await conversation.startSession({ agentId });
+        }
       } catch (err) {
-        console.error("Failed to start mock interview:", err);
-        setMicError(err.message || "failed to start");
-        setSessionStatus("idle");
+        console.error("failed to start interview:", err);
+        setMicError(err.message || "failed to connect");
+        setSessionPhase("idle");
         setActiveSession(null);
       }
     },
     [conversation]
   );
 
-  const endMockInterview = useCallback(async () => {
+  const endInterview = useCallback(async () => {
     try {
       await conversation.endSession();
     } catch {
-      // Session may already be ended
+      /* may already be ended */
     }
-    setSessionStatus("ended");
-    setTimeout(() => {
-      setActiveSession(null);
-      setSessionStatus("idle");
-      setTranscript([]);
-    }, 5000);
+    setSessionPhase("ended");
+    clearInterval(timerRef.current);
   }, [conversation]);
 
+  const dismissSession = useCallback(() => {
+    setActiveSession(null);
+    setSessionPhase("idle");
+    setTranscript([]);
+    setElapsedTime(0);
+  }, []);
+
+  /* ═══════════════════════════════════
+     RENDER
+     ═══════════════════════════════════ */
+
+  // normalize field names (DB rows use `company`, quick-start uses `company_name`)
+  const displayCompany =
+    activeSession?.company || activeSession?.company_name || "interview";
+  const displayRole =
+    activeSession?.job_title || "mock interview session";
+
   return (
-    <>
-      {/* Header */}
+    <div className="interviewer-view">
+      {/* ── Header ── */}
       <motion.div
         className="view-header"
         initial={{ opacity: 0, y: 20 }}
@@ -188,220 +264,276 @@ export default function InterviewerView({ applications, timeAgo }) {
         transition={{ duration: 0.5 }}
       >
         <div>
-          <h1 className="view-title">interviewer</h1>
+          <h1 className="view-title">mock interview</h1>
           <p className="view-subtitle">
-            ai mock interviews powered by aria + elevenlabs
+            voice-powered interview prep — aria + elevenlabs
           </p>
         </div>
         <div className="resume-stats-row">
           <div className="mini-stat">
-            <span className="mini-stat-value">{readyApps.length}</span>
+            <span className="mini-stat-value">{readySessions.length}</span>
             <span className="mini-stat-label">ready</span>
           </div>
           <div className="mini-stat">
-            <span className="mini-stat-value">{mockInterviews.length}</span>
+            <span className="mini-stat-value">{completedSessions.length}</span>
             <span className="mini-stat-label">completed</span>
           </div>
           <div className="mini-stat">
             <span className="mini-stat-value">
-              {mockInterviews.length > 0
-                ? Math.round(
-                    mockInterviews.reduce(
-                      (sum, m) => sum + (m.overall_score || 0),
-                      0
-                    ) /
-                      mockInterviews.filter((m) => m.overall_score).length || 0
-                  )
-                : "—"}
+              {avgScore !== null ? avgScore : "—"}
             </span>
             <span className="mini-stat-label">avg score</span>
           </div>
         </div>
       </motion.div>
 
-      {/* Active Interview Session */}
+      {/* ═══ QUICK START ═══ */}
+      {!activeSession && (
+        <motion.div
+          className="iv-quickstart"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.05 }}
+        >
+          <div className="iv-quickstart-inner">
+            <div className="iv-quickstart-text">
+              <h2 className="iv-quickstart-title">start a mock interview</h2>
+              <p className="iv-quickstart-desc">
+                if aria prepped an interview, enter the company and role below.
+                or leave blank for general practice.
+              </p>
+            </div>
+            <div className="iv-quickstart-form">
+              <div className="iv-quickstart-fields">
+                <input
+                  type="text"
+                  className="iv-quickstart-input"
+                  placeholder="company (e.g. TestCorp)"
+                  value={qsCompany}
+                  onChange={(e) => setQsCompany(e.target.value)}
+                />
+                <input
+                  type="text"
+                  className="iv-quickstart-input"
+                  placeholder="role (e.g. Junior Data Analyst)"
+                  value={qsRole}
+                  onChange={(e) => setQsRole(e.target.value)}
+                />
+              </div>
+              <button
+                className="iv-quickstart-btn"
+                onClick={() =>
+                  startInterview({
+                    company_name: qsCompany.trim() || "general practice",
+                    job_title: qsRole.trim() || "mock interview session",
+                  })
+                }
+              >
+                <span className="iv-start-dot" />
+                start interview
+              </button>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      {/* ═══ ACTIVE INTERVIEW SESSION ═══ */}
       <AnimatePresence>
         {activeSession && (
           <motion.div
-            className="interview-session"
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.95 }}
-            transition={{ duration: 0.3 }}
+            className="iv-session"
+            initial={{ opacity: 0, scale: 0.96, y: 20 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.96, y: -10 }}
+            transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
           >
-            <div className="session-header">
-              <div>
-                <h2 className="session-title">
-                  mock interview: {activeSession.company_name}
-                </h2>
-                <span className="session-role">{activeSession.job_title}</span>
+            {/* ambient glow */}
+            <div className="iv-session-glow" />
+
+            {/* header */}
+            <div className="iv-session-header">
+              <div className="iv-session-meta">
+                <h2 className="iv-session-company">{displayCompany}</h2>
+                <span className="iv-session-role">{displayRole}</span>
+                {activeSession?.interviewer_name && (
+                  <span className="iv-session-interviewer">
+                    interviewer: {activeSession.interviewer_name}
+                  </span>
+                )}
               </div>
-              <span className={`session-status ${sessionStatus}`}>
-                {sessionStatus === "loading" && "connecting to elevenlabs..."}
-                {sessionStatus === "active" && "interview in progress"}
-                {sessionStatus === "ended" && "generating debrief..."}
-              </span>
+              <div className="iv-session-indicators">
+                <span className={`iv-status-chip ${sessionPhase}`}>
+                  <span className="iv-status-dot" />
+                  {statusLabel}
+                </span>
+                {sessionPhase === "active" && (
+                  <span className="iv-timer">{fmtTime(elapsedTime)}</span>
+                )}
+              </div>
             </div>
 
-            <div className="session-body">
-              {sessionStatus === "loading" && (
-                <div className="session-loading">
-                  <div className="voice-rings">
-                    <span className="ring ring-1" />
-                    <span className="ring ring-2" />
-                    <span className="ring ring-3" />
+            {/* question categories preview (if available from Aria) */}
+            {activeSession?.questions_summary &&
+              sessionPhase === "connecting" && (
+                <div className="iv-questions-preview">
+                  <span className="iv-questions-label">question categories</span>
+                  <div className="iv-questions-tags">
+                    {activeSession.questions_summary.map((q, i) => (
+                      <span key={i} className="iv-question-tag">
+                        {q.category || q.topic}
+                        {q.count ? ` (${q.count})` : ""}
+                      </span>
+                    ))}
                   </div>
-                  <p>aria is configuring your interviewer...</p>
+                </div>
+              )}
+
+            {/* body */}
+            <div className="iv-session-body">
+              {/* ── CONNECTING ── */}
+              {sessionPhase === "connecting" && (
+                <div className="iv-connecting">
+                  <div className="iv-rings">
+                    <span className="iv-ring iv-ring-1" />
+                    <span className="iv-ring iv-ring-2" />
+                    <span className="iv-ring iv-ring-3" />
+                  </div>
+                  <p className="iv-connecting-text">
+                    connecting to{" "}
+                    {activeSession?.interviewer_name || "your interviewer"}...
+                  </p>
                   {micError && (
-                    <p className="session-error">
-                      <span className="error-prefix">err:</span> {micError}
+                    <p className="iv-error">
+                      <span className="iv-error-label">err</span> {micError}
                     </p>
                   )}
                 </div>
               )}
 
-              {sessionStatus === "active" && (
-                <div className="session-active">
-                  <div className="voice-visualizer">
-                    {[...Array(16)].map((_, i) => (
+              {/* ── ACTIVE ── */}
+              {sessionPhase === "active" && (
+                <div className="iv-active">
+                  {/* voice visualizer */}
+                  <div
+                    className={`iv-visualizer ${conversation.isSpeaking ? "speaking" : "listening"}`}
+                  >
+                    {[...Array(24)].map((_, i) => (
                       <span
                         key={i}
-                        className="viz-bar"
-                        style={{
-                          animationDelay: `${i * 0.06}s`,
-                          height: `${20 + Math.random() * 40}px`,
-                        }}
+                        className="iv-viz-bar"
+                        style={{ animationDelay: `${i * 0.04}s` }}
                       />
                     ))}
                   </div>
 
-                  {/* Live transcript */}
+                  {/* live transcript */}
+                  <div className="iv-transcript">
+                    {transcript.length === 0 ? (
+                      <p className="iv-transcript-empty">
+                        waiting for conversation to begin...
+                      </p>
+                    ) : (
+                      transcript.map((entry, i) => (
+                        <div
+                          key={i}
+                          className={`iv-transcript-entry ${entry.role}`}
+                        >
+                          <span className="iv-transcript-role">
+                            {entry.role === "ai" ? "interviewer" : "you"}
+                          </span>
+                          <span className="iv-transcript-text">
+                            {entry.text}
+                          </span>
+                        </div>
+                      ))
+                    )}
+                    <div ref={transcriptEndRef} />
+                  </div>
+
+                  {/* controls */}
+                  <div className="iv-controls">
+                    <span className="iv-hint">
+                      speak naturally — the ai interviewer is listening
+                    </span>
+                    <button className="iv-end-btn" onClick={endInterview}>
+                      end interview
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* ── ENDED ── */}
+              {sessionPhase === "ended" && (
+                <div className="iv-ended">
+                  <div className="iv-ended-icon">
+                    <svg
+                      width="32"
+                      height="32"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                  </div>
+                  <h3 className="iv-ended-title">interview complete</h3>
+                  <p className="iv-ended-sub">
+                    {fmtTime(elapsedTime)} · {transcript.length} exchanges
+                  </p>
+
+                  {/* final transcript preview */}
                   {transcript.length > 0 && (
-                    <div className="session-transcript">
+                    <div className="iv-transcript iv-transcript-final">
                       {transcript.map((entry, i) => (
                         <div
                           key={i}
-                          className={`transcript-entry ${entry.role}`}
+                          className={`iv-transcript-entry ${entry.role}`}
                         >
-                          <span className="transcript-role">
-                            {entry.role === "agent" ? "interviewer" : "you"}
+                          <span className="iv-transcript-role">
+                            {entry.role === "ai" ? "interviewer" : "you"}
                           </span>
-                          <span className="transcript-text">{entry.text}</span>
+                          <span className="iv-transcript-text">
+                            {entry.text}
+                          </span>
                         </div>
                       ))}
-                      <div ref={transcriptEndRef} />
                     </div>
                   )}
 
-                  <p className="session-hint">
-                    speak naturally — the ai interviewer is listening
-                  </p>
-                  <button
-                    className="end-interview-btn"
-                    onClick={endMockInterview}
-                  >
-                    end interview
+                  <button className="iv-dismiss-btn" onClick={dismissSession}>
+                    close
                   </button>
                 </div>
               )}
-
-              {sessionStatus === "ended" && (
-                <div className="session-ended">
-                  <span className="ended-icon">✓</span>
-                  <p>
-                    interview complete. aria is analyzing your performance...
-                  </p>
-                </div>
-              )}
             </div>
-
-            {sessionStatus === "idle" && (
-              <button
-                className="detail-close"
-                onClick={() => setActiveSession(null)}
-              >
-                ✕
-              </button>
-            )}
           </motion.div>
         )}
       </AnimatePresence>
 
-      {/* Mic error display */}
+      {/* mic error (when no session active) */}
       {micError && !activeSession && (
         <motion.div
-          className="mic-error-banner"
+          className="iv-mic-banner"
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0 }}
         >
-          <span className="error-prefix">mic error:</span> {micError}
+          <span className="iv-error-label">mic error</span> {micError}
         </motion.div>
       )}
 
-      {/* Ready for Interview */}
-      <motion.div
-        className="interview-section"
+      {/* ═══ ARIA-PREPPED INTERVIEWS (ready) ═══ */}
+      <motion.section
+        className="iv-section"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
       >
         <div className="section-header">
-          <h2 className="section-title">ready for mock interview</h2>
-          {readyApps.length > 0 && (
-            <span className="section-badge">{readyApps.length} available</span>
-          )}
-        </div>
-
-        {readyApps.length === 0 ? (
-          <div className="activity-empty">
-            <span className="activity-empty-icon">◈</span>
-            <p>
-              no interviews ready yet. aria configures mock interviews after
-              echo submits applications.
-            </p>
-          </div>
-        ) : (
-          <div className="interview-ready-grid">
-            {readyApps.map((app, i) => (
-              <motion.div
-                key={app.id}
-                className="interview-ready-card"
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: i * 0.05 }}
-              >
-                <div className="ready-card-top">
-                  <span className="ready-badge">ready</span>
-                </div>
-                <h3 className="ready-company">{app.company_name}</h3>
-                <span className="ready-role">{app.job_title}</span>
-                <button
-                  className="start-interview-btn"
-                  onClick={() => startMockInterview(app)}
-                  disabled={activeSession !== null}
-                >
-                  <span className="btn-mic">◉</span>
-                  start mock interview
-                </button>
-              </motion.div>
-            ))}
-          </div>
-        )}
-      </motion.div>
-
-      {/* Completed Interviews */}
-      <motion.div
-        className="interview-section"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-      >
-        <div className="section-header">
-          <h2 className="section-title">completed interviews</h2>
-          {mockInterviews.length > 0 && (
+          <h2 className="section-title">prepped by aria</h2>
+          {readySessions.length > 0 && (
             <span className="section-badge">
-              {mockInterviews.length} debriefs
+              {readySessions.length} ready
             </span>
           )}
         </div>
@@ -410,17 +542,114 @@ export default function InterviewerView({ applications, timeAgo }) {
           <div className="panel-loading">
             <span className="loading-dot" /> loading...
           </div>
-        ) : mockInterviews.length === 0 ? (
+        ) : readySessions.length === 0 ? (
+          <div className="activity-empty">
+            <span className="activity-empty-icon">◈</span>
+            <p>
+              no interviews prepped yet. when aria configures an elevenlabs
+              session, it'll appear here automatically.
+            </p>
+          </div>
+        ) : (
+          <div className="iv-ready-grid">
+            {readySessions.map((session, i) => (
+              <motion.div
+                key={session.id}
+                className="iv-ready-card"
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.3, delay: i * 0.05 }}
+              >
+                <div className="iv-ready-top">
+                  <span className="iv-ready-badge">ready</span>
+                  {session.estimated_duration_minutes && (
+                    <span className="iv-ready-duration">
+                      ~{session.estimated_duration_minutes} min
+                    </span>
+                  )}
+                </div>
+                <h3 className="iv-ready-company">{session.company}</h3>
+                <span className="iv-ready-role">{session.job_title}</span>
+
+                {/* interviewer name */}
+                {session.interviewer_name && (
+                  <span className="iv-ready-interviewer">
+                    interviewer: {session.interviewer_name}
+                  </span>
+                )}
+
+                {/* interview date */}
+                {session.interview_date && (
+                  <span className="iv-ready-date">
+                    {new Date(session.interview_date).toLocaleDateString(
+                      "en-US",
+                      {
+                        weekday: "short",
+                        month: "short",
+                        day: "numeric",
+                        hour: "numeric",
+                        minute: "2-digit",
+                      }
+                    )}
+                  </span>
+                )}
+
+                {/* question categories */}
+                {session.questions_summary && (
+                  <div className="iv-ready-questions">
+                    {session.questions_summary.map((q, j) => (
+                      <span key={j} className="iv-question-chip">
+                        {q.category || q.topic}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
+                <button
+                  className="iv-start-btn"
+                  onClick={() => startInterview(session)}
+                  disabled={activeSession !== null}
+                >
+                  <span className="iv-start-dot" />
+                  start {session.company} interview
+                </button>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </motion.section>
+
+      {/* ═══ COMPLETED INTERVIEWS ═══ */}
+      <motion.section
+        className="iv-section"
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.2 }}
+      >
+        <div className="section-header">
+          <h2 className="section-title">completed interviews</h2>
+          {completedSessions.length > 0 && (
+            <span className="section-badge">
+              {completedSessions.length} debriefs
+            </span>
+          )}
+        </div>
+
+        {loading ? (
+          <div className="panel-loading">
+            <span className="loading-dot" /> loading...
+          </div>
+        ) : completedSessions.length === 0 ? (
           <div className="activity-empty">
             <span className="activity-empty-icon">◌</span>
             <p>no completed mock interviews yet.</p>
           </div>
         ) : (
-          <div className="interviews-list">
-            {mockInterviews.map((interview, i) => (
+          <div className="iv-completed-grid">
+            {completedSessions.map((interview, i) => (
               <motion.div
                 key={interview.id}
-                className={`interview-card ${selectedInterview?.id === interview.id ? "selected" : ""}`}
+                className={`iv-completed-card ${selectedInterview?.id === interview.id ? "selected" : ""}`}
                 initial={{ opacity: 0, y: 15 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.3, delay: i * 0.04 }}
@@ -430,127 +659,135 @@ export default function InterviewerView({ applications, timeAgo }) {
                   )
                 }
               >
-                <div className="interview-card-header">
+                <div className="iv-completed-header">
                   <div>
-                    <h3 className="interview-company">{interview.company}</h3>
-                    <span className="interview-role">
+                    <h3 className="iv-completed-company">
+                      {interview.company}
+                    </h3>
+                    <span className="iv-completed-role">
                       {interview.job_title}
                     </span>
                   </div>
                   {interview.overall_score && (
                     <span
-                      className={`interview-score ${scoreColor(interview.overall_score)}`}
+                      className={`iv-score ${scoreColor(interview.overall_score)}`}
                     >
-                      {interview.overall_score}%
+                      {interview.overall_score}
                     </span>
                   )}
                 </div>
 
-                <div className="interview-meta">
+                <div className="iv-completed-tags">
                   {interview.strongest_area && (
-                    <span className="interview-tag strength">
-                      ↑ {interview.strongest_area}
+                    <span className="iv-tag strength">
+                      {interview.strongest_area}
                     </span>
                   )}
                   {interview.weakest_area && (
-                    <span className="interview-tag weakness">
-                      ↓ {interview.weakest_area}
+                    <span className="iv-tag weakness">
+                      {interview.weakest_area}
                     </span>
                   )}
                 </div>
 
-                <span className="interview-date">
-                  {timeAgo(interview.created_at)}
+                <span className="iv-completed-date">
+                  {timeAgo(interview.completed_at || interview.created_at)}
                 </span>
               </motion.div>
             ))}
           </div>
         )}
-      </motion.div>
+      </motion.section>
 
-      {/* Selected Interview Debrief */}
+      {/* ═══ SELECTED INTERVIEW DEBRIEF ═══ */}
       <AnimatePresence>
         {selectedInterview && (
           <motion.div
-            className="app-detail-panel"
+            className="iv-debrief-panel"
             initial={{ opacity: 0, y: 20, height: 0 }}
             animate={{ opacity: 1, y: 0, height: "auto" }}
             exit={{ opacity: 0, y: -10, height: 0 }}
             transition={{ duration: 0.3 }}
           >
-            <div className="detail-header">
+            <div className="iv-debrief-header">
               <div>
-                <h3 className="detail-company">{selectedInterview.company}</h3>
-                <span className="detail-role">
+                <h3 className="iv-debrief-company">
+                  {selectedInterview.company}
+                </h3>
+                <span className="iv-debrief-role">
                   {selectedInterview.job_title}
                 </span>
               </div>
               <button
-                className="detail-close"
+                className="iv-debrief-close"
                 onClick={() => setSelectedInterview(null)}
               >
-                ✕
+                x
               </button>
             </div>
 
-            <div className="detail-grid">
-              <div className="detail-item">
-                <span className="detail-label">overall score</span>
+            <div className="iv-debrief-stats">
+              <div className="iv-debrief-stat">
                 <span
-                  className={`detail-value score-lg ${scoreColor(selectedInterview.overall_score)}`}
+                  className={`iv-debrief-stat-value ${scoreColor(selectedInterview.overall_score)}`}
                 >
                   {selectedInterview.overall_score
-                    ? `${selectedInterview.overall_score}%`
+                    ? `${selectedInterview.overall_score}`
                     : "pending"}
                 </span>
+                <span className="iv-debrief-stat-label">overall score</span>
               </div>
-              <div className="detail-item">
-                <span className="detail-label">strongest area</span>
-                <span className="detail-value">
+              <div className="iv-debrief-stat">
+                <span className="iv-debrief-stat-value">
                   {selectedInterview.strongest_area || "—"}
                 </span>
+                <span className="iv-debrief-stat-label">strongest area</span>
               </div>
-              <div className="detail-item">
-                <span className="detail-label">weakest area</span>
-                <span className="detail-value">
+              <div className="iv-debrief-stat">
+                <span className="iv-debrief-stat-value">
                   {selectedInterview.weakest_area || "—"}
                 </span>
+                <span className="iv-debrief-stat-label">weakest area</span>
               </div>
-              <div className="detail-item">
-                <span className="detail-label">recommendation</span>
-                <span className="detail-value">
+              <div className="iv-debrief-stat">
+                <span className="iv-debrief-stat-value">
                   {selectedInterview.recommendation || "—"}
                 </span>
+                <span className="iv-debrief-stat-label">recommendation</span>
               </div>
             </div>
 
             {selectedInterview.debrief && (
-              <div className="debrief-section">
-                <span className="detail-label">aria's debrief</span>
-                <pre className="debrief-text">{selectedInterview.debrief}</pre>
+              <div className="iv-debrief-body">
+                <span className="iv-debrief-label">aria's debrief</span>
+                <pre className="iv-debrief-text">
+                  {selectedInterview.debrief}
+                </pre>
               </div>
             )}
 
             {selectedInterview.transcript && (
-              <div className="transcript-section">
-                <span className="detail-label">transcript</span>
-                <div className="transcript-body">
+              <div className="iv-debrief-body">
+                <span className="iv-debrief-label">transcript</span>
+                <div className="iv-transcript iv-transcript-final">
                   {Array.isArray(selectedInterview.transcript) ? (
                     selectedInterview.transcript.map((entry, i) => (
                       <div
                         key={i}
-                        className={`transcript-entry ${entry.role || ""}`}
+                        className={`iv-transcript-entry ${entry.role || ""}`}
                       >
-                        <span className="transcript-role">
-                          {entry.role === "agent" ? "interviewer" : "you"}
+                        <span className="iv-transcript-role">
+                          {entry.role === "ai" || entry.role === "agent"
+                            ? "interviewer"
+                            : "you"}
                         </span>
-                        <span className="transcript-text">
+                        <span className="iv-transcript-text">
                           {entry.message || entry.text}
                         </span>
                       </div>
                     ))
                   ) : (
-                    <pre className="detail-jd-text">
+                    <pre className="iv-debrief-text">
                       {JSON.stringify(selectedInterview.transcript, null, 2)}
                     </pre>
                   )}
@@ -561,9 +798,9 @@ export default function InterviewerView({ applications, timeAgo }) {
         )}
       </AnimatePresence>
 
-      {/* Aria Activity */}
-      <motion.div
-        className="interview-section"
+      {/* ═══ ARIA ACTIVITY ═══ */}
+      <motion.section
+        className="iv-section"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.3 }}
@@ -592,7 +829,7 @@ export default function InterviewerView({ applications, timeAgo }) {
             ))}
           </div>
         )}
-      </motion.div>
-    </>
+      </motion.section>
+    </div>
   );
 }
