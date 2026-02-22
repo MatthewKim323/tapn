@@ -23,7 +23,7 @@
 .login-card {
   width: 420px;
   max-width: 92vw;
-  background: rgba(11, 11, 31, 0.85);
+  background: rgba(11, 11, 31, 0.45);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
   border: 1px solid var(--border);
@@ -44,7 +44,7 @@
   gap: 12px;
   padding: 12px 16px;
   background: var(--bg-elevated);
-  border-bottom: 1px solid var(--border-subtle);
+  border-bottom: 1px solid rgba(167, 139, 250, 0.25);
 }
 
 .terminal-dots {
@@ -72,7 +72,7 @@
 /* ═══ Card Body ═══ */
 
 .login-card-body {
-  padding: 40px 36px 32px;
+  padding: 48px 44px 38px;
 }
 
 .login-header {
@@ -81,31 +81,33 @@
 
 .login-label {
   font-family: var(--font-mono);
-  font-size: 0.65rem;
-  font-weight: 500;
+  font-size: 0.88rem;
+  font-weight: 400;
   color: var(--accent);
-  letter-spacing: 0.35em;
+  letter-spacing: 0.20em;
   text-transform: uppercase;
   display: block;
   margin-bottom: 8px;
 }
 
 .login-title {
-  font-family: var(--font-display);
-  font-size: 2.8rem;
-  font-weight: 800;
+  font-family: 'Roboto Mono', monospace;
+  font-size: 3.2rem;
+  font-weight: 900;
   color: var(--text-bright);
   margin: 0;
-  letter-spacing: -0.02em;
+  letter-spacing: 0.02em;
   line-height: 1;
+  text-transform: capitalize;
 }
 
 .login-subtitle {
-  font-family: var(--font-body);
-  font-size: 0.85rem;
-  color: var(--text-secondary);
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  color: #d4d4d4; 
   margin: 10px 0 0;
   font-weight: 400;
+  text-transform: capitalize;
 }
 
 /* ═══ Form ═══ */
@@ -124,19 +126,21 @@
 
 .login-field .field-label {
   font-family: var(--font-mono);
-  font-size: 0.7rem;
-  color: var(--text-muted);
+  font-size: 0.8rem;
+  font-weight: 900;
+  color: #f5f5f5;
   letter-spacing: 0.1em;
+  text-transform: capitalize;
 }
 
 .login-field .field-input {
   background: transparent;
   border: none;
-  border-bottom: 1px solid var(--border-bright);
-  padding: 10px 0;
+  border-bottom: 2px solid #e6e6e6;
+  padding: 12px 0;
   font-family: var(--font-mono);
-  font-size: 0.9rem;
-  color: var(--text-bright);
+  font-size: 1rem;
+  color: #e6e6e6; 
   outline: none;
   transition: border-color 0.3s ease;
   letter-spacing: 0.02em;
@@ -148,7 +152,7 @@
 }
 
 .login-field .field-input:focus {
-  border-color: var(--accent);
+  border-color: #e6e6e6;
 }
 
 /* ═══ Error ═══ */
@@ -170,14 +174,14 @@
 
 .login-submit {
   width: 100%;
-  padding: 14px;
+  padding: 18px 16px;
   margin-top: 8px;
   background: transparent;
   border: 1px solid var(--accent-dim);
   border-radius: var(--radius-md);
   color: var(--accent);
   font-family: var(--font-display);
-  font-size: 0.9rem;
+  font-size: 1rem;
   font-weight: 600;
   letter-spacing: 0.06em;
   cursor: pointer;
@@ -198,7 +202,7 @@
 .login-submit:hover {
   background: var(--accent-glow);
   border-color: var(--accent);
-  box-shadow: 0 0 30px rgba(255, 107, 107, 0.1);
+  box-shadow: 0 0 30px rgba(167, 139, 250, 0.15);
 }
 
 .login-submit:hover::before {
@@ -237,6 +241,7 @@
   font-size: 0.8rem;
   cursor: pointer;
   transition: color 0.2s;
+  text-transform: capitalize;
 }
 
 .toggle-btn:hover {
@@ -256,7 +261,7 @@
   gap: 8px;
   padding: 8px 16px;
   background: var(--bg-elevated);
-  border-top: 1px solid var(--border-subtle);
+  border-top: 1px solid rgba(167, 139, 250, 0.25);
   font-family: var(--font-mono);
   font-size: 0.6rem;
   color: var(--text-muted);
@@ -267,7 +272,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--accent);
+  background: #a78bfa;
   box-shadow: 0 0 6px var(--accent);
   animation: pulse 2s infinite;
 }
@@ -282,10 +287,23 @@
 }
 
 @media (max-width: 480px) {
-  .login-card-body {
-    padding: 28px 20px 24px;
+  .login-card {
+    width: 480px;
+    max-width: 94vw;
+    background: rgba(255, 255, 255, 0.01);  /* Lighter, semi-transparent white */
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    position: relative;
+    z-index: 1;
+    box-shadow:
+      0 0 80px rgba(167, 139, 250, 0.15),
+      0 4px 32px rgba(0, 0, 0, 0.6);
   }
   .login-title {
     font-size: 2.2rem;
+    text-transform: uppercase !important;
   }
 }

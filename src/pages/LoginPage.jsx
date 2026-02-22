@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../lib/supabase";
-import FaultyTerminal from "../components/FaultyTerminal";
+import StarNest from "../components/StarNest";
 import "./LoginPage.css";
 
 export default function LoginPage() {
@@ -60,22 +60,7 @@ export default function LoginPage() {
     <div className="login-page">
       {/* FaultyTerminal WebGL background */}
       <div className="login-terminal-bg">
-        <FaultyTerminal
-          scale={1.5}
-          gridMul={[2, 1]}
-          digitSize={1.2}
-          timeScale={0.4}
-          scanlineIntensity={0.4}
-          glitchAmount={1}
-          flickerAmount={0.8}
-          noiseAmp={0.8}
-          curvature={0.08}
-          tint="#FF6B6B"
-          mouseReact
-          mouseStrength={0.4}
-          pageLoadAnimation
-          brightness={0.35}
-        />
+        <StarNest />
       </div>
 
       <motion.div
@@ -87,11 +72,8 @@ export default function LoginPage() {
         {/* Terminal header bar */}
         <div className="login-terminal-bar">
           <div className="terminal-dots">
-            <span className="dot dot-red" />
-            <span className="dot dot-yellow" />
-            <span className="dot dot-green" />
           </div>
-          <span className="terminal-title">tapn://auth</span>
+          {/*<span className="terminal-title">tapn://auth</span>*/}
         </div>
 
         <div className="login-card-body">
@@ -101,12 +83,14 @@ export default function LoginPage() {
             animate={{ opacity: 1 }}
             transition={{ delay: 0.3, duration: 0.6 }}
           >
-            <span className="login-label">operator access</span>
-            <h1 className="login-title">tapn</h1>
+            <span className="login-label">
+              {mode === "signin" ? "login / sign in" : "create account"}
+            </span>
+            <h1 className="login-title">TAPN</h1>
             <p className="login-subtitle">
               {mode === "signin"
-                ? "sign in to your dashboard"
-                : "create your operator account"}
+                ? "Sign in to access"
+                : "Create your account"}
             </p>
           </motion.div>
 
@@ -118,12 +102,12 @@ export default function LoginPage() {
             transition={{ delay: 0.5, duration: 0.6 }}
           >
             <div className="login-field">
-              <label className="field-label">email_</label>
+              <label className="field-label">email</label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="operator@tapn.io"
+                placeholder="tapnluvr@gmail.com"
                 required
                 className="field-input"
                 autoComplete="email"
@@ -131,7 +115,7 @@ export default function LoginPage() {
             </div>
 
             <div className="login-field">
-              <label className="field-label">password_</label>
+              <label className="field-label">password</label>
               <input
                 type="password"
                 value={password}
@@ -167,9 +151,9 @@ export default function LoginPage() {
                   <span>.</span>
                 </span>
               ) : mode === "signin" ? (
-                "authenticate →"
+                "LOGIN →"
               ) : (
-                "initialize account →"
+                "INITIALIZE ACCOUNT →"
               )}
             </button>
           </motion.form>
@@ -188,7 +172,7 @@ export default function LoginPage() {
                   setError("");
                 }}
               >
-                no account?{" "}
+                don't have an account?    {" "}
                 <span className="toggle-accent">create one →</span>
               </button>
             ) : (
@@ -199,7 +183,7 @@ export default function LoginPage() {
                   setError("");
                 }}
               >
-                already registered?{" "}
+                already registered?  {" "}
                 <span className="toggle-accent">sign in →</span>
               </button>
             )}
@@ -208,8 +192,7 @@ export default function LoginPage() {
 
         {/* Status line */}
         <div className="login-status-bar">
-          <span className="status-dot" />
-          <span>system ready</span>
+          {/*<span>system ready</span>*/}
           <span className="status-spacer" />
           <span>v0.1.0</span>
         </div>
