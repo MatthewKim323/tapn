@@ -108,16 +108,19 @@ export default function DashboardPage({ session, profile }) {
   const [activePage, setActivePage] = useState("overview");
   const [agentDetailId, setAgentDetailId] = useState(null);
 
-  // Live data hooks
-  const { events: activityEvents } = useAgentActivity();
-  const { applications } = useApplications();
+  // Current user ID — scopes all data hooks
+  const userId = session?.user?.id;
+
+  // Live data hooks (all scoped to current user)
+  const { events: activityEvents } = useAgentActivity(userId);
+  const { applications } = useApplications(userId);
   const {
     getAgentStatus,
     getLastAction,
     gatewayOnline,
     refresh: refreshAgents,
-  } = useAgentStatus();
-  const { stats } = useDashboardStats();
+  } = useAgentStatus(userId);
+  const { stats } = useDashboardStats(userId);
 
   async function handleLogout() {
     if (supabase) {
@@ -256,11 +259,11 @@ export default function DashboardPage({ session, profile }) {
         );
       case "resumes":
         return (
-          <ResumesView applications={applications} timeAgo={timeAgo} />
+          <ResumesView applications={applications} timeAgo={timeAgo} userId={userId} />
         );
       case "interviewer":
         return (
-          <InterviewerView applications={applications} timeAgo={timeAgo} />
+          <InterviewerView applications={applications} timeAgo={timeAgo} session={session} />
         );
       default:
         return null;

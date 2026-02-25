@@ -11,6 +11,7 @@
 
 const SUPABASE_URL = process.env.TAPN_SUPABASE_URL;
 const SUPABASE_KEY = process.env.TAPN_SUPABASE_SERVICE_KEY;
+const USER_ID = process.env.TAPN_USER_ID; // UUID of the user who owns this gateway
 
 /**
  * Extract the agent name from an OpenClaw session key.
@@ -55,6 +56,11 @@ const logToSupabase = async (event) => {
         senderId: senderId,
       },
     };
+
+    // Attach user_id so logs are scoped to the gateway owner
+    if (USER_ID) {
+      row.user_id = USER_ID;
+    }
 
     const res = await fetch(`${SUPABASE_URL}/rest/v1/agent_logs`, {
       method: "POST",

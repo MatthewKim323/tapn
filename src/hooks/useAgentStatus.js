@@ -4,24 +4,25 @@ import { supabase } from '../lib/supabase';
 const AGENT_NAMES = ['tapn', 'scout', 'taylor', 'echo', 'hermes', 'aria'];
 
 /**
- * Fetches the most recent log entry for each agent from Supabase.
+ * Fetches the most recent log entry for each agent from Supabase,
+ * scoped to the current user.
  * Pings the OpenClaw gateway root URL to determine if it's online.
- * The gateway uses WebSocket (not REST), so we just check reachability.
  */
-export function useAgentStatus() {
+export function useAgentStatus(userId) {
   const [agentLogs, setAgentLogs] = useState({});
   const [gatewayOnline, setGatewayOnline] = useState(false);
   const [loading, setLoading] = useState(true);
 
-  // Fetch last action per agent from Supabase
+  // Fetch last action per agent from Supabase — filtered by user_id
   const fetchAgentLogs = useCallback(async () => {
-    if (!supabase) return;
+    if (!supabase || !userId) return;
 
     const results = await Promise.all(
       AGENT_NAMES.map(async (agent) => {
         const { data } = await supabase
           .from('agent_logs')
           .select('agent_name, action, details, status, created_at')
+          .eq('user_id', userId)
           .eq('agent_name', agent)
           .order('created_at', { ascending: false })
           .limit(1)
@@ -36,10 +37,9 @@ export function useAgentStatus() {
     });
     setAgentLogs(logs);
     setLoading(false);
-  }, []);
+  }, [userId]);
 
   // Ping the gateway root URL to check if OpenClaw is running
-  // The gateway is WebSocket-based — all we can check via HTTP is reachability
   const pingGateway = useCallback(async () => {
     try {
       const res = await fetch('/api/gateway-health', { method: 'HEAD' });
@@ -50,6 +50,11 @@ export function useAgentStatus() {
   }, []);
 
   useEffect(() => {
+    if (!userId) {
+      setLoading(false);
+      return;
+    }
+
     fetchAgentLogs();
     pingGateway();
 
@@ -67,7 +72,9 @@ export function useAgentStatus() {
             schema: 'public',
             table: 'agent_logs',
           },
-          () => {
+          (payload) => {
+            // Only process events for this user
+            if (payload.new?.user_id !== userId) return;
             fetchAgentLogs();
           }
         )
@@ -80,22 +87,15 @@ export function useAgentStatus() {
     }
 
     return () => clearInterval(interval);
-  }, [fetchAgentLogs, pingGateway]);
+  }, [userId, fetchAgentLogs, pingGateway]);
 
   /**
    * Determine agent status: 'running' | 'idle' | 'error' | 'offline'
-   *
-   * - Gateway online + recent log (< 5 min) → running
-   * - Gateway online + no recent log          → idle (standing by)
-   * - Gateway offline + recent log (< 1 hr)   → idle
-   * - Gateway offline + stale/no log           → offline
    */
   function getAgentStatus(agentName) {
     const log = agentLogs[agentName];
 
-    // No logs at all
     if (!log) {
-      // Gateway is up → agents are loaded and standing by
       return gatewayOnline ? 'idle' : 'offline';
     }
 
@@ -103,16 +103,9 @@ export function useAgentStatus() {
     const fiveMinAgo = Date.now() - 5 * 60 * 1000;
     const oneHourAgo = Date.now() - 60 * 60 * 1000;
 
-    // Last log was an error → show error regardless
     if (log.status === 'error') return 'error';
-
-    // Gateway online + recent activity → running
     if (gatewayOnline && lastTime > fiveMinAgo) return 'running';
-
-    // Gateway online but no recent activity → idle (standing by)
     if (gatewayOnline) return 'idle';
-
-    // Gateway offline but logged within the hour → idle
     if (lastTime > oneHourAgo) return 'idle';
 
     return 'offline';

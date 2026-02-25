@@ -31,6 +31,7 @@ Set these in your shell or `.env` before starting the gateway:
 ```
 TAPN_SUPABASE_URL=https://your-project.supabase.co
 TAPN_SUPABASE_SERVICE_KEY=your-service-role-key
+TAPN_USER_ID=your-auth-user-uuid
 ```
 
 ## Requirements

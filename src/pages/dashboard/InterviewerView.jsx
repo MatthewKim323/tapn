@@ -5,21 +5,27 @@ import { supabase } from "../../lib/supabase";
 
 /* ═══════════════════════════════════════════
    INTERVIEWER VIEW — ElevenLabs Voice AI
-   Now powered by mock_interview_sessions table
+   Multi-tenant: per-user sessions + shared library
    ═══════════════════════════════════════════ */
 
-export default function InterviewerView({ applications, timeAgo }) {
+export default function InterviewerView({ applications, timeAgo, session }) {
+  const userId = session?.user?.id;
+
   /* ── data state ── */
-  const [sessions, setSessions] = useState([]);     // all from mock_interview_sessions
+  const [sessions, setSessions] = useState([]);       // user's own mock_interview_sessions
+  const [library, setLibrary] = useState([]);          // shared interview_library
   const [ariaLogs, setAriaLogs] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [libraryLoading, setLibraryLoading] = useState(true);
   const [selectedInterview, setSelectedInterview] = useState(null);
 
+  /* ── tab state ── */
+  const [activeTab, setActiveTab] = useState("my"); // "my" | "library"
+
   /* ── session state ── */
-  const [activeSession, setActiveSession] = useState(null); // the row or quick-start obj
+  const [activeSession, setActiveSession] = useState(null);
   const [transcript, setTranscript] = useState([]);
   const [sessionPhase, setSessionPhase] = useState("idle");
-  // idle → connecting → active → ended
   const [micError, setMicError] = useState(null);
   const [elapsedTime, setElapsedTime] = useState(0);
   const timerRef = useRef(null);
@@ -48,7 +54,6 @@ export default function InterviewerView({ applications, timeAgo }) {
     onDisconnect: () => {
       setSessionPhase("ended");
       clearInterval(timerRef.current);
-      // mark session completed in Supabase (via ref for latest values)
       const sess = activeSessionRef.current;
       if (sess?.id && supabase) {
         supabase
@@ -61,6 +66,10 @@ export default function InterviewerView({ applications, timeAgo }) {
           .eq("id", sess.id)
           .then(({ error }) => {
             if (error) console.warn("failed to mark session completed:", error);
+            // Auto-publish to library on completion
+            if (sess.company || sess.job_title) {
+              autoPublishToLibrary(sess);
+            }
           });
       }
     },
@@ -81,6 +90,43 @@ export default function InterviewerView({ applications, timeAgo }) {
       clearInterval(timerRef.current);
     },
   });
+
+  /* ── auto-publish completed interview to library ── */
+  async function autoPublishToLibrary(sess) {
+    if (!supabase || !userId) return;
+    const company = sess.company || "general practice";
+    const jobTitle = sess.job_title || "mock interview";
+
+    // Check if a library entry already exists for this company+role
+    const { data: existing } = await supabase
+      .from("interview_library")
+      .select("id")
+      .eq("company", company)
+      .eq("job_title", jobTitle)
+      .limit(1);
+
+    if (existing && existing.length > 0) {
+      // Already in library — increment practiced count
+      await supabase.rpc("increment_library_practiced", { lib_id: existing[0].id });
+      return;
+    }
+
+    // Publish new library entry
+    await supabase.from("interview_library").insert({
+      created_by: userId,
+      company,
+      job_title: jobTitle,
+      interviewer_name: sess.interviewer_name || "Alex",
+      interviewer_persona: sess.interviewer_persona || null,
+      estimated_duration_minutes: sess.estimated_duration_minutes || 25,
+      questions_summary: sess.questions_summary || null,
+      question_categories: sess.questions_summary
+        ? sess.questions_summary.map((q) => q.category || q.topic)
+        : null,
+      difficulty: "medium",
+      agent_id: sess.agent_id || null,
+    });
+  }
 
   /* ── derived status label ── */
   const statusLabel = useMemo(() => {
@@ -109,20 +155,23 @@ export default function InterviewerView({ applications, timeAgo }) {
   }
 
   /* ═══════════════════════════════════
-     FETCH from mock_interview_sessions
+     FETCH user's own sessions + aria logs
+     Explicitly filtered by user_id
      ═══════════════════════════════════ */
   useEffect(() => {
-    if (!supabase) { setLoading(false); return; }
+    if (!supabase || !userId) { setLoading(false); return; }
 
     Promise.all([
       supabase
         .from("mock_interview_sessions")
         .select("*")
+        .eq("user_id", userId)
         .order("created_at", { ascending: false })
         .limit(50),
       supabase
         .from("agent_logs")
         .select("*")
+        .eq("user_id", userId)
         .eq("agent_name", "aria")
         .order("created_at", { ascending: false })
         .limit(30),
@@ -139,11 +188,56 @@ export default function InterviewerView({ applications, timeAgo }) {
         "postgres_changes",
         { event: "*", schema: "public", table: "mock_interview_sessions" },
         (payload) => {
+          // Only process events for this user
+          if (payload.new?.user_id && payload.new.user_id !== userId) return;
           setSessions((prev) => {
             if (payload.eventType === "DELETE") {
               return prev.filter((s) => s.id !== payload.old.id);
             }
             const idx = prev.findIndex((s) => s.id === payload.new.id);
+            if (idx >= 0) {
+              const updated = [...prev];
+              updated[idx] = payload.new;
+              return updated;
+            }
+            return [payload.new, ...prev];
+          });
+        }
+      )
+      .subscribe();
+
+    return () => supabase.removeChannel(channel);
+  }, [userId]);
+
+  /* ═══════════════════════════════════
+     FETCH shared interview library
+     (visible to all authenticated users)
+     ═══════════════════════════════════ */
+  useEffect(() => {
+    if (!supabase) { setLibraryLoading(false); return; }
+
+    supabase
+      .from("interview_library")
+      .select("*")
+      .order("times_practiced", { ascending: false })
+      .limit(100)
+      .then(({ data, error }) => {
+        if (!error && data) setLibrary(data);
+        setLibraryLoading(false);
+      });
+
+    // live subscription for new library entries
+    const channel = supabase
+      .channel("library-live")
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "interview_library" },
+        (payload) => {
+          setLibrary((prev) => {
+            if (payload.eventType === "DELETE") {
+              return prev.filter((t) => t.id !== payload.old.id);
+            }
+            const idx = prev.findIndex((t) => t.id === payload.new.id);
             if (idx >= 0) {
               const updated = [...prev];
               updated[idx] = payload.new;
@@ -181,7 +275,6 @@ export default function InterviewerView({ applications, timeAgo }) {
   function scoreColor(score) {
     if (!score) return "";
     const n = Number(score);
-    // support both 0-10 and 0-100 scales
     const normalized = n <= 10 ? n * 10 : n;
     if (normalized >= 80) return "score-high";
     if (normalized >= 60) return "score-mid";
@@ -189,42 +282,77 @@ export default function InterviewerView({ applications, timeAgo }) {
   }
 
   /* ═══════════════════════════════════
+     START interview from library template
+     Creates a personal session row first
+     ═══════════════════════════════════ */
+  const practiceFromLibrary = useCallback(
+    async (template) => {
+      if (!supabase || !userId) return;
+
+      // Create a personal mock_interview_sessions row linked to the library template
+      const { data: newSession, error } = await supabase
+        .from("mock_interview_sessions")
+        .insert({
+          user_id: userId,
+          library_id: template.id,
+          agent_id: template.agent_id || import.meta.env.VITE_ELEVENLABS_AGENT_ID,
+          company: template.company,
+          job_title: template.job_title,
+          interviewer_name: template.interviewer_name,
+          estimated_duration_minutes: template.estimated_duration_minutes,
+          questions_summary: template.questions_summary,
+          status: "ready",
+        })
+        .select()
+        .single();
+
+      if (error) {
+        console.error("failed to create session from library:", error);
+        return;
+      }
+
+      // Increment practiced count
+      await supabase.rpc("increment_library_practiced", { lib_id: template.id });
+
+      // Start the interview with the newly created session
+      startInterview(newSession);
+    },
+    [userId]
+  );
+
+  /* ═══════════════════════════════════
      START / END interview
      ═══════════════════════════════════ */
-
   const startInterview = useCallback(
-    async (session) => {
-      // session can be a mock_interview_sessions row or a quick-start object
-      setActiveSession(session);
+    async (interviewSession) => {
+      setActiveSession(interviewSession);
       setSessionPhase("connecting");
       setMicError(null);
       setTranscript([]);
       setElapsedTime(0);
 
       try {
-        // mic permission
         await navigator.mediaDevices.getUserMedia({ audio: true });
 
-        // if this is a real DB row, mark it as in_progress
-        if (session.id && supabase) {
+        // If this is a real DB row, mark it as in_progress
+        if (interviewSession.id && supabase) {
           supabase
             .from("mock_interview_sessions")
             .update({ status: "in_progress" })
-            .eq("id", session.id)
+            .eq("id", interviewSession.id)
             .then(({ error }) => {
               if (error) console.warn("failed to update session status:", error);
             });
         }
 
         // build per-interview overrides from session data
-        const company = session.company || session.company_name || "general practice";
-        const role = session.job_title || "mock interview";
-        const interviewer = session.interviewer_name || "Alex";
-        const questions = session.questions_summary;
+        const company = interviewSession.company || interviewSession.company_name || "general practice";
+        const role = interviewSession.job_title || "mock interview";
+        const interviewer = interviewSession.interviewer_name || "Alex";
+        const questions = interviewSession.questions_summary;
 
         let overrides = undefined;
-        // only override if we have real session data (not a blank quick-start)
-        if (session.company || session.interviewer_name) {
+        if (interviewSession.company || interviewSession.interviewer_name) {
           let promptText = `You are ${interviewer}, a hiring manager at ${company}. You are conducting a mock interview for the ${role} position. Be professional, warm, and neutral — do not give feedback during the interview. Ask one question at a time and wait for the candidate to respond before moving on.`;
           if (questions && questions.length > 0) {
             const cats = questions.map(q => q.category || q.topic).join(", ");
@@ -240,7 +368,7 @@ export default function InterviewerView({ applications, timeAgo }) {
           };
         }
 
-        // try signed URL first (keeps API key server-side)
+        // try signed URL first
         let signedUrl = null;
         try {
           const res = await fetch("/api/interview/signed-url");
@@ -255,9 +383,8 @@ export default function InterviewerView({ applications, timeAgo }) {
         if (signedUrl) {
           await conversation.startSession({ signedUrl, overrides });
         } else {
-          // fallback: use the agent_id from the session row, or env var
           const agentId =
-            session.agent_id || import.meta.env.VITE_ELEVENLABS_AGENT_ID;
+            interviewSession.agent_id || import.meta.env.VITE_ELEVENLABS_AGENT_ID;
           if (!agentId)
             throw new Error("no agent_id found — check session or .env");
           await conversation.startSession({ agentId, overrides });
@@ -272,6 +399,39 @@ export default function InterviewerView({ applications, timeAgo }) {
     [conversation]
   );
 
+  /* ── quick-start: create a session row then start ── */
+  const quickStart = useCallback(async () => {
+    const company = qsCompany.trim() || "general practice";
+    const role = qsRole.trim() || "mock interview session";
+
+    if (!supabase || !userId) {
+      // Fallback: in-memory session (no DB)
+      startInterview({ company_name: company, job_title: role });
+      return;
+    }
+
+    // Insert a real row so it shows in history
+    const { data: newSession, error } = await supabase
+      .from("mock_interview_sessions")
+      .insert({
+        user_id: userId,
+        company,
+        job_title: role,
+        status: "ready",
+        agent_id: import.meta.env.VITE_ELEVENLABS_AGENT_ID,
+      })
+      .select()
+      .single();
+
+    if (error) {
+      console.error("failed to create quick-start session:", error);
+      startInterview({ company_name: company, job_title: role });
+      return;
+    }
+
+    startInterview(newSession);
+  }, [qsCompany, qsRole, userId, startInterview]);
+
   const endInterview = useCallback(async () => {
     try {
       await conversation.endSession();
@@ -281,7 +441,6 @@ export default function InterviewerView({ applications, timeAgo }) {
     setSessionPhase("ended");
     clearInterval(timerRef.current);
 
-    // mark the session as completed in Supabase
     if (activeSession?.id && supabase) {
       supabase
         .from("mock_interview_sessions")
@@ -293,6 +452,9 @@ export default function InterviewerView({ applications, timeAgo }) {
         .eq("id", activeSession.id)
         .then(({ error }) => {
           if (error) console.warn("failed to mark session completed:", error);
+          if (activeSession.company || activeSession.job_title) {
+            autoPublishToLibrary(activeSession);
+          }
         });
     }
   }, [conversation, activeSession, transcript]);
@@ -308,7 +470,6 @@ export default function InterviewerView({ applications, timeAgo }) {
      RENDER
      ═══════════════════════════════════ */
 
-  // normalize field names (DB rows use `company`, quick-start uses `company_name`)
   const displayCompany =
     activeSession?.company || activeSession?.company_name || "interview";
   const displayRole =
@@ -339,6 +500,10 @@ export default function InterviewerView({ applications, timeAgo }) {
             <span className="mini-stat-label">completed</span>
           </div>
           <div className="mini-stat">
+            <span className="mini-stat-value">{library.length}</span>
+            <span className="mini-stat-label">in library</span>
+          </div>
+          <div className="mini-stat">
             <span className="mini-stat-value">
               {avgScore !== null ? avgScore : "—"}
             </span>
@@ -359,8 +524,8 @@ export default function InterviewerView({ applications, timeAgo }) {
             <div className="iv-quickstart-text">
               <h2 className="iv-quickstart-title">start a mock interview</h2>
               <p className="iv-quickstart-desc">
-                if aria prepped an interview, enter the company and role below.
-                or leave blank for general practice.
+                enter company + role for a targeted session, or leave blank for general practice.
+                completed interviews auto-publish to the shared library.
               </p>
             </div>
             <div className="iv-quickstart-form">
@@ -382,12 +547,7 @@ export default function InterviewerView({ applications, timeAgo }) {
               </div>
               <button
                 className="iv-quickstart-btn"
-                onClick={() =>
-                  startInterview({
-                    company_name: qsCompany.trim() || "general practice",
-                    job_title: qsRole.trim() || "mock interview session",
-                  })
-                }
+                onClick={quickStart}
               >
                 <span className="iv-start-dot" />
                 start interview
@@ -407,10 +567,8 @@ export default function InterviewerView({ applications, timeAgo }) {
             exit={{ opacity: 0, scale: 0.96, y: -10 }}
             transition={{ duration: 0.4, ease: [0.16, 1, 0.3, 1] }}
           >
-            {/* ambient glow */}
             <div className="iv-session-glow" />
 
-            {/* header */}
             <div className="iv-session-header">
               <div className="iv-session-meta">
                 <h2 className="iv-session-company">{displayCompany}</h2>
@@ -432,7 +590,6 @@ export default function InterviewerView({ applications, timeAgo }) {
               </div>
             </div>
 
-            {/* question categories preview (if available from Aria) */}
             {activeSession?.questions_summary &&
               sessionPhase === "connecting" && (
                 <div className="iv-questions-preview">
@@ -448,9 +605,7 @@ export default function InterviewerView({ applications, timeAgo }) {
                 </div>
               )}
 
-            {/* body */}
             <div className="iv-session-body">
-              {/* ── CONNECTING ── */}
               {sessionPhase === "connecting" && (
                 <div className="iv-connecting">
                   <div className="iv-rings">
@@ -470,10 +625,8 @@ export default function InterviewerView({ applications, timeAgo }) {
                 </div>
               )}
 
-              {/* ── ACTIVE ── */}
               {sessionPhase === "active" && (
                 <div className="iv-active">
-                  {/* voice visualizer */}
                   <div
                     className={`iv-visualizer ${conversation.isSpeaking ? "speaking" : "listening"}`}
                   >
@@ -486,7 +639,6 @@ export default function InterviewerView({ applications, timeAgo }) {
                     ))}
                   </div>
 
-                  {/* live transcript */}
                   <div className="iv-transcript">
                     {transcript.length === 0 ? (
                       <p className="iv-transcript-empty">
@@ -510,7 +662,6 @@ export default function InterviewerView({ applications, timeAgo }) {
                     <div ref={transcriptEndRef} />
                   </div>
 
-                  {/* controls */}
                   <div className="iv-controls">
                     <span className="iv-hint">
                       speak naturally — the ai interviewer is listening
@@ -522,7 +673,6 @@ export default function InterviewerView({ applications, timeAgo }) {
                 </div>
               )}
 
-              {/* ── ENDED ── */}
               {sessionPhase === "ended" && (
                 <div className="iv-ended">
                   <div className="iv-ended-icon">
@@ -542,7 +692,6 @@ export default function InterviewerView({ applications, timeAgo }) {
                     {fmtTime(elapsedTime)} · {transcript.length} exchanges
                   </p>
 
-                  {/* final transcript preview */}
                   {transcript.length > 0 && (
                     <div className="iv-transcript iv-transcript-final">
                       {transcript.map((entry, i) => (
@@ -571,7 +720,7 @@ export default function InterviewerView({ applications, timeAgo }) {
         )}
       </AnimatePresence>
 
-      {/* mic error (when no session active) */}
+      {/* mic error banner */}
       {micError && !activeSession && (
         <motion.div
           className="iv-mic-banner"
@@ -582,204 +731,327 @@ export default function InterviewerView({ applications, timeAgo }) {
         </motion.div>
       )}
 
-      {/* ═══ ARIA-PREPPED INTERVIEWS (ready) ═══ */}
-      <motion.section
-        className="iv-section"
+      {/* ═══ TAB SWITCHER: My Interviews / Library ═══ */}
+      <motion.div
+        className="iv-tabs"
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, delay: 0.1 }}
       >
-        <div className="section-header">
-          <h2 className="section-title">prepped by aria</h2>
-          {readySessions.length > 0 && (
-            <span className="section-badge">
-              {readySessions.length} ready
-            </span>
+        <button
+          className={`iv-tab ${activeTab === "my" ? "active" : ""}`}
+          onClick={() => setActiveTab("my")}
+        >
+          my interviews
+        </button>
+        <button
+          className={`iv-tab ${activeTab === "library" ? "active" : ""}`}
+          onClick={() => setActiveTab("library")}
+        >
+          interview library
+          {library.length > 0 && (
+            <span className="iv-tab-badge">{library.length}</span>
           )}
-        </div>
+        </button>
+      </motion.div>
 
-        {loading ? (
-          <div className="panel-loading">
-            <span className="loading-dot" /> loading...
-          </div>
-        ) : readySessions.length === 0 ? (
-          <div className="activity-empty">
-            <span className="activity-empty-icon">◈</span>
-            <p>
-              no interviews prepped yet. when aria configures an elevenlabs
-              session, it'll appear here automatically.
-            </p>
-          </div>
-        ) : (
-          <div className="iv-ready-grid">
-            {readySessions.map((session, i) => (
-              <motion.div
-                key={session.id}
-                className="iv-ready-card"
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: i * 0.05 }}
-              >
-                <div className="iv-ready-top">
-                  <span className={`iv-ready-badge ${session.status === "in_progress" ? "iv-badge-retry" : ""}`}>
-                    {session.status === "in_progress" ? "retry" : "ready"}
-                  </span>
-                  {session.estimated_duration_minutes && (
-                    <span className="iv-ready-duration">
-                      ~{session.estimated_duration_minutes} min
-                    </span>
-                  )}
-                </div>
-                <h3 className="iv-ready-company">{session.company}</h3>
-                <span className="iv-ready-role">{session.job_title}</span>
+      {/* ═══ MY INTERVIEWS TAB ═══ */}
+      {activeTab === "my" && (
+        <>
+          {/* ARIA-PREPPED INTERVIEWS (ready) */}
+          <motion.section
+            className="iv-section"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.1 }}
+          >
+            <div className="section-header">
+              <h2 className="section-title">prepped by aria</h2>
+              {readySessions.length > 0 && (
+                <span className="section-badge">
+                  {readySessions.length} ready
+                </span>
+              )}
+            </div>
 
-                {/* interviewer name */}
-                {session.interviewer_name && (
-                  <span className="iv-ready-interviewer">
-                    interviewer: {session.interviewer_name}
-                  </span>
-                )}
-
-                {/* interview date */}
-                {session.interview_date && (
-                  <span className="iv-ready-date">
-                    {new Date(session.interview_date).toLocaleDateString(
-                      "en-US",
-                      {
-                        weekday: "short",
-                        month: "short",
-                        day: "numeric",
-                        hour: "numeric",
-                        minute: "2-digit",
-                      }
-                    )}
-                  </span>
-                )}
-
-                {/* question categories */}
-                {session.questions_summary && (
-                  <div className="iv-ready-questions">
-                    {session.questions_summary.map((q, j) => (
-                      <span key={j} className="iv-question-chip">
-                        {q.category || q.topic}
-                      </span>
-                    ))}
-                  </div>
-                )}
-
-                <button
-                  className="iv-start-btn"
-                  onClick={() => startInterview(session)}
-                  disabled={activeSession !== null}
-                >
-                  <span className="iv-start-dot" />
-                  {session.status === "in_progress" ? "retry" : "start"} {session.company} interview
-                </button>
-              </motion.div>
-            ))}
-          </div>
-        )}
-      </motion.section>
-
-      {/* ═══ COMPLETED INTERVIEWS ═══ */}
-      <motion.section
-        className="iv-section"
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5, delay: 0.2 }}
-      >
-        <div className="section-header">
-          <h2 className="section-title">completed interviews</h2>
-          {completedSessions.length > 0 && (
-            <span className="section-badge">
-              {completedSessions.length} debriefs
-            </span>
-          )}
-        </div>
-
-        {loading ? (
-          <div className="panel-loading">
-            <span className="loading-dot" /> loading...
-          </div>
-        ) : completedSessions.length === 0 ? (
-          <div className="activity-empty">
-            <span className="activity-empty-icon">◌</span>
-            <p>no completed mock interviews yet.</p>
-          </div>
-        ) : (
-          <div className="iv-completed-grid">
-            {completedSessions.map((interview, i) => (
-              <motion.div
-                key={interview.id}
-                className={`iv-completed-card ${selectedInterview?.id === interview.id ? "selected" : ""}`}
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.3, delay: i * 0.04 }}
-                onClick={() =>
-                  setSelectedInterview(
-                    selectedInterview?.id === interview.id ? null : interview
-                  )
-                }
-              >
-                <div className="iv-completed-header">
-                  <div>
-                    <h3 className="iv-completed-company">
-                      {interview.company}
-                    </h3>
-                    <span className="iv-completed-role">
-                      {interview.job_title}
-                    </span>
-                  </div>
-                  {interview.overall_score && (
-                    <span
-                      className={`iv-score ${scoreColor(interview.overall_score)}`}
-                    >
-                      {interview.overall_score}
-                    </span>
-                  )}
-                </div>
-
-                <div className="iv-completed-tags">
-                  {interview.strongest_area && (
-                    <span className="iv-tag strength">
-                      {interview.strongest_area}
-                    </span>
-                  )}
-                  {interview.weakest_area && (
-                    <span className="iv-tag weakness">
-                      {interview.weakest_area}
-                    </span>
-                  )}
-                </div>
-
-                <div className="iv-completed-bottom">
-                  <span className="iv-completed-date">
-                    {timeAgo(interview.completed_at || interview.created_at)}
-                  </span>
-                  <button
-                    className="iv-retry-btn"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      // reset to ready + re-queue
-                      if (interview.id && supabase) {
-                        supabase
-                          .from("mock_interview_sessions")
-                          .update({ status: "ready", completed_at: null })
-                          .eq("id", interview.id)
-                          .then(({ error }) => {
-                            if (error) console.warn("failed to reset session:", error);
-                          });
-                      }
-                    }}
+            {loading ? (
+              <div className="panel-loading">
+                <span className="loading-dot" /> loading...
+              </div>
+            ) : readySessions.length === 0 ? (
+              <div className="activity-empty">
+                <span className="activity-empty-icon">◈</span>
+                <p>
+                  no interviews prepped yet. when aria configures an elevenlabs
+                  session, it'll appear here automatically. or browse the shared
+                  library to practice community interviews.
+                </p>
+              </div>
+            ) : (
+              <div className="iv-ready-grid">
+                {readySessions.map((sess, i) => (
+                  <motion.div
+                    key={sess.id}
+                    className="iv-ready-card"
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: i * 0.05 }}
                   >
-                    retry
-                  </button>
-                </div>
-              </motion.div>
-            ))}
+                    <div className="iv-ready-top">
+                      <span className={`iv-ready-badge ${sess.status === "in_progress" ? "iv-badge-retry" : ""}`}>
+                        {sess.status === "in_progress" ? "retry" : "ready"}
+                      </span>
+                      {sess.estimated_duration_minutes && (
+                        <span className="iv-ready-duration">
+                          ~{sess.estimated_duration_minutes} min
+                        </span>
+                      )}
+                    </div>
+                    <h3 className="iv-ready-company">{sess.company}</h3>
+                    <span className="iv-ready-role">{sess.job_title}</span>
+
+                    {sess.interviewer_name && (
+                      <span className="iv-ready-interviewer">
+                        interviewer: {sess.interviewer_name}
+                      </span>
+                    )}
+
+                    {sess.interview_date && (
+                      <span className="iv-ready-date">
+                        {new Date(sess.interview_date).toLocaleDateString(
+                          "en-US",
+                          {
+                            weekday: "short",
+                            month: "short",
+                            day: "numeric",
+                            hour: "numeric",
+                            minute: "2-digit",
+                          }
+                        )}
+                      </span>
+                    )}
+
+                    {sess.questions_summary && (
+                      <div className="iv-ready-questions">
+                        {sess.questions_summary.map((q, j) => (
+                          <span key={j} className="iv-question-chip">
+                            {q.category || q.topic}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    <button
+                      className="iv-start-btn"
+                      onClick={() => startInterview(sess)}
+                      disabled={activeSession !== null}
+                    >
+                      <span className="iv-start-dot" />
+                      {sess.status === "in_progress" ? "retry" : "start"} {sess.company} interview
+                    </button>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </motion.section>
+
+          {/* COMPLETED INTERVIEWS */}
+          <motion.section
+            className="iv-section"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <div className="section-header">
+              <h2 className="section-title">your completed interviews</h2>
+              {completedSessions.length > 0 && (
+                <span className="section-badge">
+                  {completedSessions.length} debriefs
+                </span>
+              )}
+            </div>
+
+            {loading ? (
+              <div className="panel-loading">
+                <span className="loading-dot" /> loading...
+              </div>
+            ) : completedSessions.length === 0 ? (
+              <div className="activity-empty">
+                <span className="activity-empty-icon">◌</span>
+                <p>no completed mock interviews yet.</p>
+              </div>
+            ) : (
+              <div className="iv-completed-grid">
+                {completedSessions.map((interview, i) => (
+                  <motion.div
+                    key={interview.id}
+                    className={`iv-completed-card ${selectedInterview?.id === interview.id ? "selected" : ""}`}
+                    initial={{ opacity: 0, y: 15 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3, delay: i * 0.04 }}
+                    onClick={() =>
+                      setSelectedInterview(
+                        selectedInterview?.id === interview.id ? null : interview
+                      )
+                    }
+                  >
+                    <div className="iv-completed-header">
+                      <div>
+                        <h3 className="iv-completed-company">
+                          {interview.company}
+                        </h3>
+                        <span className="iv-completed-role">
+                          {interview.job_title}
+                        </span>
+                      </div>
+                      {interview.overall_score && (
+                        <span
+                          className={`iv-score ${scoreColor(interview.overall_score)}`}
+                        >
+                          {interview.overall_score}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="iv-completed-tags">
+                      {interview.strongest_area && (
+                        <span className="iv-tag strength">
+                          {interview.strongest_area}
+                        </span>
+                      )}
+                      {interview.weakest_area && (
+                        <span className="iv-tag weakness">
+                          {interview.weakest_area}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="iv-completed-bottom">
+                      <span className="iv-completed-date">
+                        {timeAgo(interview.completed_at || interview.created_at)}
+                      </span>
+                      <button
+                        className="iv-retry-btn"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (interview.id && supabase) {
+                            supabase
+                              .from("mock_interview_sessions")
+                              .update({ status: "ready", completed_at: null })
+                              .eq("id", interview.id)
+                              .then(({ error }) => {
+                                if (error) console.warn("failed to reset session:", error);
+                              });
+                          }
+                        }}
+                      >
+                        retry
+                      </button>
+                    </div>
+                  </motion.div>
+                ))}
+              </div>
+            )}
+          </motion.section>
+        </>
+      )}
+
+      {/* ═══ LIBRARY TAB ═══ */}
+      {activeTab === "library" && (
+        <motion.section
+          className="iv-section"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          <div className="section-header">
+            <h2 className="section-title">shared interview library</h2>
+            <span className="section-badge">{library.length} templates</span>
           </div>
-        )}
-      </motion.section>
+
+          <p className="iv-library-desc">
+            practice any interview from the community library. each session creates
+            your own personal record. completed interviews auto-publish here for everyone.
+          </p>
+
+          {libraryLoading ? (
+            <div className="panel-loading">
+              <span className="loading-dot" /> loading library...
+            </div>
+          ) : library.length === 0 ? (
+            <div className="activity-empty">
+              <span className="activity-empty-icon">◈</span>
+              <p>
+                the library is empty. complete a mock interview and it'll
+                automatically be published here for everyone to practice.
+              </p>
+            </div>
+          ) : (
+            <div className="iv-library-grid">
+              {library.map((template, i) => (
+                <motion.div
+                  key={template.id}
+                  className="iv-library-card"
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: i * 0.04 }}
+                >
+                  <div className="iv-library-top">
+                    <span className="iv-library-difficulty">
+                      {template.difficulty || "medium"}
+                    </span>
+                    {template.times_practiced > 0 && (
+                      <span className="iv-library-practiced">
+                        {template.times_practiced} practiced
+                      </span>
+                    )}
+                  </div>
+
+                  <h3 className="iv-library-company">{template.company}</h3>
+                  <span className="iv-library-role">{template.job_title}</span>
+
+                  {template.interviewer_name && (
+                    <span className="iv-library-interviewer">
+                      interviewer: {template.interviewer_name}
+                    </span>
+                  )}
+
+                  {template.estimated_duration_minutes && (
+                    <span className="iv-library-duration">
+                      ~{template.estimated_duration_minutes} min
+                    </span>
+                  )}
+
+                  {template.question_categories && template.question_categories.length > 0 && (
+                    <div className="iv-library-categories">
+                      {template.question_categories.map((cat, j) => (
+                        <span key={j} className="iv-question-chip">
+                          {cat}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {template.avg_score && (
+                    <span className={`iv-library-avg ${scoreColor(template.avg_score)}`}>
+                      avg: {Math.round(template.avg_score)}
+                    </span>
+                  )}
+
+                  <button
+                    className="iv-start-btn iv-practice-btn"
+                    onClick={() => practiceFromLibrary(template)}
+                    disabled={activeSession !== null}
+                  >
+                    <span className="iv-start-dot" />
+                    practice this interview
+                  </button>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </motion.section>
+      )}
 
       {/* ═══ SELECTED INTERVIEW DEBRIEF ═══ */}
       <AnimatePresence>

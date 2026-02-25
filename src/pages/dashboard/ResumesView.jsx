@@ -2,17 +2,21 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { supabase } from "../../lib/supabase";
 
-export default function ResumesView({ applications, timeAgo }) {
+export default function ResumesView({ applications, timeAgo, userId }) {
   const [resumeLogs, setResumeLogs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedResume, setSelectedResume] = useState(null);
 
   useEffect(() => {
-    if (!supabase) return;
+    if (!supabase || !userId) {
+      setLoading(false);
+      return;
+    }
 
     supabase
       .from("agent_logs")
       .select("*")
+      .eq("user_id", userId)
       .eq("agent_name", "taylor")
       .eq("action", "resume_tailored")
       .order("created_at", { ascending: false })
@@ -33,6 +37,7 @@ export default function ResumesView({ applications, timeAgo }) {
           filter: "agent_name=eq.taylor",
         },
         (payload) => {
+          if (payload.new?.user_id !== userId) return;
           if (payload.new.action === "resume_tailored") {
             setResumeLogs((prev) => [payload.new, ...prev]);
           }
@@ -43,7 +48,7 @@ export default function ResumesView({ applications, timeAgo }) {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [userId]);
 
   // Merge resume logs with application data
   const resumeItems = resumeLogs.map((log) => {
