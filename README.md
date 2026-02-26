@@ -50,16 +50,17 @@ TAPN pairs a React dashboard with a 6-agent [OpenClaw](https://openclaw.dev) eco
 
 ### What's shared vs. per-user
 
-| Resource | Scope | How |
+| Resource | Scope | Details |
 |---|---|---|
-| Supabase database | **Shared** (one instance for everyone) | Hosted by the TAPN team |
-| Webapp (Vercel) | **Shared** (one deployment) | Everyone uses the same URL |
-| `interview_library` | **Shared** (all users can browse) | Completed interviews auto-publish |
+| Webapp (Vercel) | **Shared** | Hosted at one URL — everyone uses the same deployment |
+| Supabase database | **Shared** | One instance, managed by the admin |
+| ElevenLabs agent | **Shared** | One voice AI agent, accessed via signed URLs |
+| `interview_library` | **Shared** | All users can browse and practice |
 | `profiles` | Per user | RLS: `auth.uid() = id` |
 | `agent_logs` | Per user | RLS: `auth.uid() = user_id` |
 | `applications` | Per user | RLS: `auth.uid() = user_id` |
 | `mock_interview_sessions` | Per user | RLS: `auth.uid() = user_id` |
-| OpenClaw gateway | Per user (runs locally) | Each user installs + runs their own |
+| OpenClaw gateway | Per user | Each user installs and runs their own locally |
 
 ---
 
@@ -134,16 +135,19 @@ TAPN pairs a React dashboard with a 6-agent [OpenClaw](https://openclaw.dev) eco
 
 ## Setup
 
-There are two setup paths:
+### For Users
 
-1. **Admin setup** (one time) — deploy the webapp + configure Supabase
-2. **User setup** — each user who wants agents connects their own OpenClaw gateway
+**You don't need to clone anything.** The webapp is hosted on Vercel — just visit the URL, sign up, complete onboarding, and you're in. Your dashboard, mock interviews, and interview library all work immediately.
+
+If you want the **AI agent pipeline** (auto-discover jobs, tailor resumes, submit applications, prep interviews), you'll need to set up OpenClaw locally. See [User Setup: Connect Your Agents](#user-setup-connect-your-agents) below.
+
+### For the Admin (Deploying TAPN)
+
+This section is for whoever hosts and maintains the TAPN instance. You only do this once.
 
 ---
 
 ### Admin Setup (Deploy TAPN)
-
-This is for whoever hosts the webapp. You only do this once.
 
 #### 1. Clone & Install
 
@@ -153,9 +157,11 @@ cd tapn
 npm install
 ```
 
-#### 2. Supabase Project
+#### 2. Create a Supabase Project
 
-Create a project at [supabase.com](https://supabase.com), then run the full schema SQL in the SQL Editor. The schema is in `supabase/migration_multi_tenant.sql` or you can use the SQL below:
+Go to [supabase.com](https://supabase.com), create a new project, then run the schema SQL in the SQL Editor.
+
+The full schema is in `supabase/migration_multi_tenant.sql`, or expand below:
 
 <details>
 <summary>Click to expand full SQL schema</summary>
@@ -217,7 +223,7 @@ CREATE INDEX IF NOT EXISTS idx_agent_logs_agent ON agent_logs (agent_name, creat
 CREATE INDEX IF NOT EXISTS idx_agent_logs_user ON agent_logs (user_id, created_at DESC);
 ALTER TABLE agent_logs ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users read own logs" ON agent_logs FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "Users insert own logs" ON agent_logs FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "Service inserts logs" ON agent_logs FOR INSERT WITH CHECK (true);
 
 -- applications (per-user)
 CREATE TABLE IF NOT EXISTS applications (
@@ -265,6 +271,7 @@ ALTER TABLE mock_interview_sessions ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Users read own sessions" ON mock_interview_sessions FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "Users insert own sessions" ON mock_interview_sessions FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "Users update own sessions" ON mock_interview_sessions FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "Users delete own sessions" ON mock_interview_sessions FOR DELETE USING (auth.uid() = user_id);
 
 -- interview_library (SHARED — all authenticated users can browse)
 CREATE TABLE IF NOT EXISTS interview_library (
@@ -304,54 +311,52 @@ $$;
 
 Also disable **email confirmation** in Supabase → Auth → Settings (for development).
 
-#### 3. Environment Variables
+#### 3. Deploy to Vercel
 
-Create a `.env` file in the project root:
+Import the repo at [vercel.com/new](https://vercel.com/new) or use the CLI:
+
+```bash
+npm i -g vercel
+vercel
+```
+
+#### 4. Set Vercel Environment Variables
+
+Go to **Vercel → Project Settings → Environment Variables** and add these four:
+
+| Variable | Value | Where it's used |
+|---|---|---|
+| `VITE_SUPABASE_URL` | `https://your-project.supabase.co` | Client — baked into the build. Find it in Supabase → Settings → API → Project URL |
+| `VITE_SUPABASE_ANON_KEY` | `eyJ...` (the long JWT) | Client — baked into the build. Find it in Supabase → Settings → API → anon public key |
+| `ELEVENLABS_API_KEY` | `sk_...` | **Server-side only** — used by `api/interview/signed-url.js` to generate signed URLs. Never reaches the browser. Find it in ElevenLabs → API Keys |
+| `VITE_ELEVENLABS_AGENT_ID` | `agent_...` | Client — baked into the build. Find it in ElevenLabs → Conversational AI → your agent |
+
+> **That's it.** After setting these four variables and deploying, the webapp is fully functional. Users visit the Vercel URL, sign up, and everything works — dashboard, mock interviews, interview library.
+
+#### 5. Local Development (optional)
+
+For local dev, create a `.env` file in the project root with the same variables:
 
 ```env
-# Supabase
 VITE_SUPABASE_URL=https://your-project.supabase.co
 VITE_SUPABASE_ANON_KEY=your-anon-key
-
-# ElevenLabs (API key is server-side only — no VITE_ prefix)
 ELEVENLABS_API_KEY=sk_your_api_key
 VITE_ELEVENLABS_AGENT_ID=agent_your_agent_id
 ```
 
-#### 4. Deploy to Vercel
-
-```bash
-# Install Vercel CLI (if you haven't)
-npm i -g vercel
-
-# Deploy
-vercel
-```
-
-Or import the repo at [vercel.com/new](https://vercel.com/new).
-
-In **Vercel → Project Settings → Environment Variables**, add the same env vars:
-
-| Variable | Type |
-|---|---|
-| `VITE_SUPABASE_URL` | Client (build-time) |
-| `VITE_SUPABASE_ANON_KEY` | Client (build-time) |
-| `ELEVENLABS_API_KEY` | Server-only (runtime) |
-| `VITE_ELEVENLABS_AGENT_ID` | Client (build-time) |
-
-#### 5. Local Development
+Then run:
 
 ```bash
 npm run dev
 ```
 
-The app starts at `http://localhost:5173` (or next available port).
+The app starts at `http://localhost:5173`. The Vite dev server handles the `/api/interview/*` endpoints locally via middleware in `vite.config.js`.
 
 ---
 
 ### User Setup (Connect Your Agents)
 
-This is for each user who wants to run the AI agent pipeline. The webapp itself works without this — you can still browse the dashboard, do mock interviews from the library, etc. OpenClaw is only needed if you want the agents to discover jobs, tailor resumes, submit applications, and prep interviews for you.
+> **This is optional.** The webapp works without OpenClaw — you can sign up, browse the dashboard, practice mock interviews from the library, and start quick interviews. OpenClaw is only needed if you want the full AI agent pipeline: automated job discovery, resume tailoring, application submission, scheduling, and interview prep.
 
 #### 1. Install OpenClaw
 
@@ -370,19 +375,15 @@ After signing up on the TAPN webapp:
 3. Run: `(await (await import('./lib/supabase')).supabase.auth.getUser()).data.user.id`
 4. Copy the UUID — this is your `TAPN_USER_ID`
 
-Or ask the admin to find it in **Supabase → Authentication → Users**.
+Or ask the admin to look it up in **Supabase → Authentication → Users**.
 
-#### 3. Set Environment Variables
-
-In the terminal where you'll run OpenClaw:
+#### 3. Clone the Repo (for the hook files only)
 
 ```bash
-export TAPN_SUPABASE_URL=https://your-tapn-supabase.supabase.co
-export TAPN_SUPABASE_SERVICE_KEY=ask-the-admin-for-this
-export TAPN_USER_ID=your-uuid-from-step-2
+git clone https://github.com/MatthewKim323/tapn.git
 ```
 
-> **Note:** The `service_role` key is sensitive. The admin should provide it securely. It lets the OpenClaw hook write to Supabase on your behalf.
+You only need the `openclaw-hooks/` directory. Everything else is the hosted webapp.
 
 #### 4. Install the Supabase Logger Hook
 
@@ -391,21 +392,33 @@ cd tapn
 openclaw hook install ./openclaw-hooks/supabase-logger
 ```
 
-#### 5. Place Your USER.md
+#### 5. Set Environment Variables
 
-After completing onboarding, download your `USER.md` from the dashboard (sidebar → "user.md" button). Place it in your OpenClaw workspace:
+The admin will provide the Supabase URL and service key. Set these in the terminal where you'll run OpenClaw:
+
+```bash
+export TAPN_SUPABASE_URL=https://your-tapn-instance.supabase.co
+export TAPN_SUPABASE_SERVICE_KEY=ask-the-admin-for-this
+export TAPN_USER_ID=your-uuid-from-step-2
+```
+
+> **Note:** The `service_role` key is sensitive — the admin should provide it to you securely. It allows the OpenClaw hook to write to Supabase on your behalf.
+
+#### 6. Place Your USER.md
+
+After completing onboarding, download your `USER.md` from the dashboard sidebar. Place it in your OpenClaw workspace:
 
 ```bash
 cp ~/Downloads/USER.md ~/.openclaw/USER.md
 ```
 
-#### 6. Start the Gateway
+#### 7. Start the Gateway
 
 ```bash
 openclaw gateway
 ```
 
-Your agents will now run and their activity will show up on your personal TAPN dashboard. All stats, logs, and applications are scoped to your account — no one else can see them.
+Your agents will now run and their activity shows up on your personal TAPN dashboard. All stats, logs, and applications are scoped to your account — no one else can see them.
 
 ---
 
@@ -413,7 +426,7 @@ Your agents will now run and their activity will show up on your personal TAPN d
 
 The interview library is a shared resource across all TAPN users.
 
-- When you complete a mock interview, the interview template (company, role, questions) is automatically published to the library
+- When you complete a mock interview, the template (company, role, questions) is automatically published to the library
 - Any user can browse the library and practice any interview
 - Each practice session creates a personal record — your transcript and score are private
 - The library tracks how many times each template has been practiced
@@ -439,7 +452,7 @@ tapn/
 │   │   ├── StarNest.jsx       # Star nest shader effect
 │   │   ├── Dither.jsx         # Dither background effect
 │   │   └── ...
-│   ├── hooks/                 # Custom React hooks
+│   ├── hooks/                 # Custom React hooks (all user-scoped)
 │   │   ├── useAgentActivity.js    # Realtime agent log feed
 │   │   ├── useAgentStatus.js      # Agent status + gateway health
 │   │   ├── useApplications.js     # Realtime applications
@@ -464,22 +477,21 @@ tapn/
 ├── openclaw-hooks/
 │   └── supabase-logger/       # OpenClaw hook → logs agent events to Supabase
 ├── supabase/
-│   ├── migration_multi_tenant.sql  # Full DB migration script
-│   └── backfill_library.sql        # Populate library from existing interviews
-├── vercel.json                # Vercel deployment config
-├── vite.config.js             # Vite + dev middleware
-└── .env                       # Environment variables (gitignored)
+│   └── migration_multi_tenant.sql  # Full DB schema + RLS policies
+├── vercel.json                # Vercel routing config
+├── vite.config.js             # Vite config + local dev API middleware
+└── .env                       # Local env vars (gitignored)
 ```
 
 ---
 
 ## Security Notes
 
-- The ElevenLabs API key (`sk_...`) is **server-side only** — served by Vercel serverless functions (production) or Vite middleware (development). Never touches the client bundle.
-- Supabase anon key is safe to expose — RLS handles all authorization.
+- The ElevenLabs API key (`sk_...`) is **server-side only** — served by Vercel serverless functions (production) or Vite middleware (local dev). Never touches the client bundle.
+- The Supabase anon key is safe to expose client-side — RLS handles all authorization.
 - `.env` is gitignored. Never commit secrets.
 - Row Level Security ensures every user only sees their own data. The `interview_library` is the only shared table.
-- The OpenClaw `service_role` key bypasses RLS — only share it with users you trust. Each user's gateway tags logs with their `TAPN_USER_ID`.
+- The OpenClaw `service_role` key bypasses RLS — only share it with trusted users. Each user's gateway tags logs with their `TAPN_USER_ID`.
 
 ---
 
