@@ -37,13 +37,6 @@ const TECH_STACK = [
 /* triple the array so the marquee loops seamlessly */
 const MARQUEE_ITEMS = [...TECH_STACK, ...TECH_STACK, ...TECH_STACK];
 
-const TEAM = [
-  "matthew kim",
-  "brendan chung",
-  "sou hamura",
-  "sabrina nguyen",
-  "allison gu",
-];
 
 function LandingPage() {
   const { isLoading, isIntroComplete, triggerZoom, navigationState, resetNavigation } =
@@ -109,57 +102,32 @@ function LandingPage() {
 
       {/* Layer 4: UI Content */}
       <div className="content-container">
-        {/* ═══ Glassmorphic Top Bar ═══ */}
+        {/* ═══ Built-with strip ═══ */}
         <motion.nav
-          className="glass-topbar"
-          initial={{ opacity: 0, y: -30 }}
-          animate={{ opacity: navigationState === "zoomingIn" ? 0 : 1, y: 0 }}
-          transition={{ delay: 1.4, duration: 0.9, ease: "easeOut" }}
+          className="built-with-strip"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: navigationState === "zoomingIn" ? 0 : 1 }}
+          transition={{ delay: 1.6, duration: 0.9, ease: "easeOut" }}
         >
-          {/* Row 1: team */}
-          <div className="glass-row glass-row-team">
-            <span className="glass-label">team</span>
-            <div className="glass-team-names">
-              {TEAM.map((name, i) => (
-                <span key={name} className="glass-team-name">
-                  {name}
-                  {i < TEAM.length - 1 && (
-                    <span className="glass-team-sep">|</span>
-                  )}
-                </span>
+          <span className="built-with-label">built with</span>
+          <div className="built-with-marquee-track">
+            <div className="built-with-marquee-scroll">
+              {MARQUEE_ITEMS.map((tech, i) => (
+                <a
+                  key={`${tech.name}-${i}`}
+                  className="built-with-icon"
+                  href={tech.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={tech.name}
+                >
+                  <img src={tech.logo} alt={tech.name} loading="lazy" />
+                </a>
               ))}
             </div>
           </div>
-
-          {/* Row 2: built with label */}
-          <div className="glass-row glass-row-built">
-            <span className="glass-label">built with</span>
-          </div>
-
-          {/* Row 3: scrolling favicons */}
-          <div className="glass-row glass-row-icons">
-            <div className="glass-marquee-track">
-              <div className="glass-marquee-scroll">
-                {MARQUEE_ITEMS.map((tech, i) => (
-                  <a
-                    key={`${tech.name}-${i}`}
-                    className="glass-tech-icon"
-                    href={tech.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    title={tech.name}
-                  >
-                    <img
-                      src={tech.logo}
-                      alt={tech.name}
-                      loading="lazy"
-                    />
-                  </a>
-                ))}
-              </div>
-            </div>
-          </div>
         </motion.nav>
+
 
         <motion.header
           className="page-header"

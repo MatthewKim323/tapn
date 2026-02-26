@@ -1,0 +1,61 @@
+/* ═══════════════════════════════════════════
+   Galaxy Loader — seamless orb on pure black
+   ═══════════════════════════════════════════ */
+
+.galaxy-loader-screen {
+  position: fixed;
+  inset: 0;
+  /* pure black — exactly matches gl.clearColor(0,0,0,1) so canvas edges are invisible */
+  background: #000000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  opacity: 1;
+  transition: opacity 1s ease-out;
+}
+
+.galaxy-loader-screen.galaxy-loader-fadeout {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* ── Pulsing glow halo (CSS radial gradient, sits behind the canvas) ── */
+
+.galaxy-loader-glow {
+  position: absolute;
+  width: 300px;
+  height: 300px;
+  border-radius: 50%;
+  background: radial-gradient(
+    circle,
+    rgba(200, 100, 40, 0.16) 0%,
+    rgba(140, 50, 180, 0.10) 40%,
+    transparent 68%
+  );
+  animation: glowPulse 3.5s ease-in-out infinite;
+  pointer-events: none;
+}
+
+@keyframes glowPulse {
+  0%, 100% { opacity: 0.5; transform: scale(1); }
+  50%      { opacity: 1;   transform: scale(1.1); }
+}
+
+/* ── WebGL canvas container ──
+   NO border-radius. NO overflow hidden. NO box-shadow.
+   The shader's own vignette fades to pure black so the edges
+   are indistinguishable from the page background.            */
+
+.galaxy-loader-canvas {
+  position: absolute;
+  width: 260px;
+  height: 260px;
+}
+
+.galaxy-loader-canvas canvas {
+  display: block;
+  width: 100% !important;
+  height: 100% !important;
+}
+

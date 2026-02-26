@@ -1,3 +1,24 @@
+/* ── Loader → App cross-fade ── */
+
+.app-reveal {
+  opacity: 0;
+  filter: blur(12px);
+  transform: scale(1.015);
+  transition:
+    opacity 1.1s cubic-bezier(0.4, 0, 0.2, 1),
+    filter  1.1s cubic-bezier(0.4, 0, 0.2, 1),
+    transform 1.1s cubic-bezier(0.4, 0, 0.2, 1);
+  /* full-size so it doesn't collapse while invisible */
+  min-height: 100vh;
+  width: 100%;
+}
+
+.app-reveal--visible {
+  opacity: 1;
+  filter: blur(0px);
+  transform: scale(1);
+}
+
 .app-container {
   width: 100vw;
   height: 100vh;
@@ -49,10 +70,10 @@
 }
 
 /* ═══════════════════════════════════════════
-   GLASSMORPHIC TOP BAR
+   BUILT-WITH STRIP (minimal, no glass)
    ═══════════════════════════════════════════ */
 
-.glass-topbar {
+.built-with-strip {
   position: fixed;
   top: 0;
   left: 0;
@@ -62,178 +83,86 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  background: linear-gradient(
-    180deg,
-    rgba(255, 255, 255, 0.05) 0%,
-    rgba(255, 255, 255, 0.02) 60%,
-    transparent 100%
-  );
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(28px) saturate(1.3);
-  -webkit-backdrop-filter: blur(28px) saturate(1.3);
-  box-shadow:
-    0 4px 30px rgba(0, 0, 0, 0.25),
-    inset 0 1px 0 rgba(255, 255, 255, 0.07),
-    inset 0 -1px 0 rgba(255, 255, 255, 0.02);
+  gap: 10px;
+  padding: 18px 0 20px;
 }
 
-/* shared row */
-.glass-row {
-  display: flex;
-  align-items: center;
-  width: 100%;
-  justify-content: center;
-}
-
-/* ── Row 1: team ── */
-.glass-row-team {
-  gap: 12px;
-  padding: 14px 32px 8px;
-}
-
-.glass-label {
+.built-with-label {
   font-family: 'Azeret Mono', monospace;
-  font-size: 0.5rem;
+  font-size: 0.62rem;
   font-weight: 500;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.3em;
   text-transform: uppercase;
-  color: rgba(255, 255, 255, 0.25);
-  flex-shrink: 0;
-}
-
-.glass-team-names {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  justify-content: center;
-}
-
-.glass-team-name {
-  font-family: 'Geist', sans-serif;
-  font-size: 0.72rem;
-  font-weight: 300;
-  letter-spacing: 0.04em;
-  color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.28);
   white-space: nowrap;
 }
 
-.glass-team-sep {
-  display: inline-block;
-  margin: 0 10px;
-  color: rgba(255, 255, 255, 0.1);
-  font-weight: 200;
-}
-
-/* ── Row 2: built with label ── */
-.glass-row-built {
-  padding: 6px 32px 4px;
-  border-top: 1px solid rgba(255, 255, 255, 0.035);
-}
-
-/* ── Row 3: icon marquee — constrained to center ~40% ── */
-.glass-row-icons {
-  padding: 2px 0 14px;
-  width: 42%;
-  min-width: 320px;
-  max-width: 600px;
-}
-
-.glass-marquee-track {
-  width: 100%;
+.built-with-marquee-track {
+  width: 50%;
+  min-width: 340px;
+  max-width: 700px;
   overflow: hidden;
   mask-image: linear-gradient(
     to right,
     transparent 0%,
-    black 10%,
-    black 90%,
+    black 8%,
+    black 92%,
     transparent 100%
   );
   -webkit-mask-image: linear-gradient(
     to right,
     transparent 0%,
-    black 10%,
-    black 90%,
+    black 8%,
+    black 92%,
     transparent 100%
   );
 }
 
-.glass-marquee-scroll {
+.built-with-marquee-scroll {
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 28px;
   width: max-content;
-  animation: marqueeScroll 40s linear infinite;
+  animation: marqueeScroll 38s linear infinite;
 }
 
 @keyframes marqueeScroll {
-  0% { transform: translateX(0); }
+  0%   { transform: translateX(0); }
   100% { transform: translateX(calc(-100% / 3)); }
 }
 
-.glass-tech-icon {
+.built-with-icon {
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  width: 24px;
-  height: 24px;
-  border-radius: 5px;
-  transition: all 0.3s ease;
   text-decoration: none;
 }
 
-.glass-tech-icon img {
-  width: 19px;
-  height: 19px;
+.built-with-icon img {
+  width: 26px;
+  height: 26px;
   object-fit: contain;
-  border-radius: 3px;
-  filter: grayscale(100%) brightness(0.6);
-  opacity: 0.4;
-  transition: all 0.3s ease;
+  border-radius: 4px;
+  /* invert first so black icons become white, then grayscale + dim */
+  filter: invert(1) grayscale(1) brightness(0.75) opacity(0.45);
+  transition: filter 0.3s ease, transform 0.3s ease;
 }
 
-.glass-tech-icon:hover img {
-  filter: grayscale(0%) brightness(1.2);
-  opacity: 1;
+.built-with-icon:hover img {
+  /* restore original colours on hover */
+  filter: invert(0) grayscale(0) brightness(1) opacity(1);
   transform: scale(1.3);
 }
 
-/* ═══ Responsive ═══ */
-
 @media (max-width: 768px) {
-  .glass-row-team {
-    gap: 8px;
-    padding: 10px 16px 6px;
-  }
-  .glass-team-name {
-    font-size: 0.6rem;
-  }
-  .glass-team-sep {
-    margin: 0 6px;
-  }
-  .glass-row-icons {
-    width: 60%;
+  .built-with-marquee-track {
+    width: 70%;
     min-width: 260px;
   }
-  .glass-tech-icon img {
-    width: 16px;
-    height: 16px;
-  }
-}
-
-@media (max-width: 480px) {
-  .glass-row-team {
-    flex-wrap: wrap;
-    gap: 4px;
-  }
-  .glass-team-name {
-    font-size: 0.55rem;
-  }
-  .glass-team-sep {
-    margin: 0 4px;
-  }
-  .glass-row-icons {
-    width: 75%;
+  .built-with-icon img {
+    width: 22px;
+    height: 22px;
   }
 }
 
